@@ -10,7 +10,6 @@
 #include <HTTPClient.h>
 #include "AsyncUDP.h"
 
-
 /***************************************************************************
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
   that will send the reading to an influx database for
@@ -155,7 +154,7 @@ void loop() {
     }
 
   digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level)
-  delay(5000);
+  delay(10000);
 }
 
 void printWifiStatus() {
