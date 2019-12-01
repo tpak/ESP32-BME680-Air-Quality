@@ -8,6 +8,8 @@
 #include <WiFiMulti.h>
 
 #include <HTTPClient.h>
+#include "AsyncUDP.h"
+
 
 /***************************************************************************
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
@@ -40,6 +42,7 @@
 Adafruit_BME680 bme; // I2C
 
 WiFiMulti wifiMulti;
+AsyncUDP udp;
 
 void setup() {
   
@@ -84,13 +87,15 @@ void setup() {
 }
 
 void loop() {
+  // blink while we process the BME680
+  digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
 
+  // grab and process a reading from the BME680 
   if (! bme.performReading()) {
     Serial.println("Failed to perform reading :(");
     return;
   }
 
-  digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
   float tempC = (bme.temperature);
   float tempF = ((tempC * (9.0/5.0)) + 32.0);
   float pressure = (bme.pressure / 100.0);
@@ -127,9 +132,30 @@ void loop() {
   Serial.print("  voltage = ");
   Serial.println(voltage, 3);
   Serial.println();
+
+  // here is the wire format for the influxDB we are using
+  // bme680,location=bakerz Temp=26.43,TempF=79.57,hPa=771.98,RH=21.08,VOCKOhms=101.33,Altitude=2236.10,Vraw=2367,Voltage=3.812
   
+  //Open UDP to Target
+  if(udp.connect(IPAddress(192,168,1,7), 8089)) 
+    {
+      Serial.println("UDP connected"); // Debug Only
+      delay(50); //Needed cause sometimes no Delay = can't send UDP packages fast enough
+      
+      String influxData = ("bme680,location=bakerz Temp=" + String(tempC) + ",TempF=" +String(tempF) + ",hPa=" + String(pressure) + \
+      ",RH=" +String(humidity) + ",VOCOhms=" +String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) + \
+      ",Voltage=" + String(voltage));
+      
+      Serial.println("influxdata:");
+      Serial.println(influxData);
+
+      udp.print(String(influxData));
+
+      delay(50); //Not really sure if needed....
+    }
+
   digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);
+  delay(5000);
 }
 
 void printWifiStatus() {
