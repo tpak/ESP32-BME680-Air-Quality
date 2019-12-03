@@ -7,8 +7,8 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 
-#include <HTTPClient.h>
-#include "AsyncUDP.h"
+//#include <HTTPClient.h>
+#include "AsyncUDP.h"  // from ESP32 library 
 
 /***************************************************************************
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
@@ -38,7 +38,7 @@
 //todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-Adafruit_BME680 bme; // I2C
+Adafruit_BME680 bme; // I2C -- see Adafruit examples for other methods
 
 WiFiMulti wifiMulti;
 AsyncUDP udp;
@@ -53,8 +53,8 @@ void setup() {
   Serial.println(F("bme680station  debug"));
   Serial.flush();
   // countdown a brief delay 
-  for(int t = 4; t > 0; t--) {
-        Serial.printf("[SETUP] WAIT %d...\n", t);
+  for(int waitSeconds = 4; waitSeconds > 0; waitSeconds--) {
+        Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
         Serial.flush();
         delay(1000);
     }
@@ -77,10 +77,10 @@ void setup() {
   // configure at least one wifi AP to selecrt from 
   // todo will make this configurable, etc 
   wifiMulti.addAP("boomcacka", "LianneMcVey22");
-  //wifiMulti.addAP("BakerzGuest2G", "GoH00s22");
+  wifiMulti.addAP("LuLusHouse", "9174035774");
 
   if((wifiMulti.run() == WL_CONNECTED)) {
-    printWifiStatus();
+    printWifiStatusToSerial();
   }
 
 }
@@ -135,9 +135,8 @@ void loop() {
   // here is the wire format for the influxDB we are using
   // bme680,location=bakerz Temp=26.43,TempF=79.57,hPa=771.98,RH=21.08,VOCKOhms=101.33,Altitude=2236.10,Vraw=2367,Voltage=3.812
   
-  //Open UDP to Target
-  if(udp.connect(IPAddress(192,168,1,7), 8089)) 
-    {
+  // conect UDP to InfluxDB server and send data 
+  if(udp.connect(IPAddress(255,255,255,255), 8089)) {
       Serial.println("UDP connected"); // Debug Only
       delay(50); //Needed cause sometimes no Delay = can't send UDP packages fast enough
       
@@ -151,13 +150,13 @@ void loop() {
       udp.print(String(influxData));
 
       delay(50); //Not really sure if needed....
-    }
+  }
 
   digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level)
   delay(10000);
 }
 
-void printWifiStatus() {
+void printWifiStatusToSerial() {
     Serial.println();
     Serial.println(F("Wifi connection info:"));
     Serial.print(F("SSID: "));
