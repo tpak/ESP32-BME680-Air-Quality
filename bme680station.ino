@@ -52,6 +52,7 @@ void setup() {
   Serial.println();
   Serial.println(F("bme680station  debug"));
   Serial.flush();
+
   // countdown a brief delay 
   for(int waitSeconds = 4; waitSeconds > 0; waitSeconds--) {
         Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
@@ -74,10 +75,11 @@ void setup() {
   bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
   bme.setGasHeater(320, 150); // 320*C for 150 ms
 
-  // configure at least one wifi AP to selecrt from 
+  // configure at least one wifi AP to select from 
   // todo will make this configurable, etc 
   wifiMulti.addAP("boomcacka", "LianneMcVey22");
   wifiMulti.addAP("LuLusHouse", "9174035774");
+  wifiMulti.addAP("Pastafarian", "BudLight");
 
   if((wifiMulti.run() == WL_CONNECTED)) {
     printWifiStatusToSerial();
