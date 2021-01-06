@@ -41,6 +41,8 @@
 // or
 // https://diyprojects.io/esp8266-web-client-tcp-ip-communication-examples-esp8266wifi-esp866httpclient/
 
+// https://learn.adafruit.com/adafruit-huzzah32-esp32-feather
+
 
 /***************************************************************************
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
