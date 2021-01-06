@@ -141,6 +141,7 @@ void loop() {
   int voltageRaw = analogRead(35);
   float voltage = ((( float(voltageRaw) * 2.0) / 4096.0) * 3.3);
 
+  Serial.println();
   Serial.print("Temperature = ");
   Serial.print(tempC);
   Serial.print(" *C  or ");
@@ -167,7 +168,6 @@ void loop() {
   Serial.print(voltageRaw);
   Serial.print("  voltage = ");
   Serial.println(voltage, 3);
-  Serial.println();
 
   // here is the wire format for the influxDB we are using
   // bme680,location=bakerz Temp=26.43,TempF=79.57,hPa=771.98,RH=21.08,VOCKOhms=101.33,Altitude=2236.10,Vraw=2367,Voltage=3.812
@@ -176,15 +176,16 @@ void loop() {
   
   //if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
   if(udp.connect(IPAddress(255,255,255,255), 8089)) {
-      Serial.println("UDP connected"); // Debug Only
+      //Serial.println("UDP connected"); // Debug Only
       delay(50); //Needed cause sometimes no Delay = can't send UDP packages fast enough
       
-      String influxData = ("bme680,location=bakerz Temp=" + String(tempC) + ",TempF=" +String(tempF) + ",hPa=" + String(pressure) + \
+      String influxData = ("bme680,location=363Office Temp=" + String(tempC) + ",TempF=" +String(tempF) + ",hPa=" + String(pressure) + \
       ",RH=" +String(humidity) + ",VOCOhms=" +String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) + \
       ",Voltage=" + String(voltage));
       
-      Serial.println("influxdata:");
+      Serial.println("send influxdata over UDP:");
       Serial.println(influxData);
+      Serial.println();
 
       udp.print(String(influxData));
       // udp.endPacket();
