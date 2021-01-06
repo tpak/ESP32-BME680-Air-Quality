@@ -1,14 +1,46 @@
+
+// begin undo this block for feather 8266 based board
+// #include <BearSSLHelpers.h>
+// #include <CertStoreBearSSL.h>
+// #include <ESP8266WiFi.h>
+// #include <ESP8266WiFiAP.h>
+// #include <ESP8266WiFiGeneric.h>
+// #include <ESP8266WiFiMulti.h>
+// #include <ESP8266WiFiScan.h>
+// #include <ESP8266WiFiSTA.h>
+// #include <ESP8266WiFiType.h>
+// #include <WiFiClient.h>
+// #include <WiFiClientSecure.h>
+// #include <WiFiClientSecureAxTLS.h>
+// #include <WiFiClientSecureBearSSL.h>
+// #include <WiFiServer.h>
+// #include <WiFiServerSecure.h>
+// #include <WiFiServerSecureAxTLS.h>
+// #include <WiFiServerSecureBearSSL.h>
+// #include <WiFiUdp.h>
+// end this block for feather 8266 based board
+
 #include <Arduino.h>
 //#include <SPI.h>
 //#include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME680.h>
 
-#include <WiFi.h>
-#include <WiFiMulti.h>
+#include <WiFi.h> // from ESP32 library - comment out for 8266
+#include <WiFiMulti.h> // from ESP32 library - comment out for 8266
 
 //#include <HTTPClient.h>
-#include "AsyncUDP.h"  // from ESP32 library 
+#include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
+
+// undo this block for feather 8266 based board
+// #include <WiFiUdp.h>
+// end this block for feather 8266 based board
+
+// esp32 and esp8266 network info 
+// https://diyprojects.io/esp32-how-to-connect-local-wifi-network-arduino-code/
+// or
+// https://diyprojects.io/esp8266-web-client-tcp-ip-communication-examples-esp8266wifi-esp866httpclient/
+
 
 /***************************************************************************
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
@@ -41,7 +73,9 @@
 Adafruit_BME680 bme; // I2C -- see Adafruit examples for other methods
 
 WiFiMulti wifiMulti;
+// ESP8266WiFiMulti wifiMulti;
 AsyncUDP udp;
+// WiFiUDP udp;
 
 void setup() {
   
@@ -136,8 +170,10 @@ void loop() {
 
   // here is the wire format for the influxDB we are using
   // bme680,location=bakerz Temp=26.43,TempF=79.57,hPa=771.98,RH=21.08,VOCKOhms=101.33,Altitude=2236.10,Vraw=2367,Voltage=3.812
-  
+
   // conect UDP to InfluxDB server and send data 
+  
+  //if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
   if(udp.connect(IPAddress(255,255,255,255), 8089)) {
       Serial.println("UDP connected"); // Debug Only
       delay(50); //Needed cause sometimes no Delay = can't send UDP packages fast enough
@@ -150,6 +186,7 @@ void loop() {
       Serial.println(influxData);
 
       udp.print(String(influxData));
+      // udp.endPacket();
 
       delay(50); //Not really sure if needed....
   }
