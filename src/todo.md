@@ -1,0 +1,3 @@
+-- get environment sorted for mac m1 silicon
+-- recompile
+-- re configure the influx server 
