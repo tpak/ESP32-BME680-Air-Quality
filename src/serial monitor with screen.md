@@ -1,4 +1,4 @@
-Use screen on Mac to watcher serial port traffic.
+How to use screen on Mac to watch serial port traffic.
 
 - find the serial port you want to watch:
 ```
@@ -13,6 +13,6 @@ Use screen on Mac to watcher serial port traffic.
 
 ## [How to get out of screen](https://stackoverflow.com/questions/4847691/how-do-i-get-out-of-screen-without-typing-exit)
 
-on Mac: 
+on Mac with prompt: 
 
     ^a ^\
