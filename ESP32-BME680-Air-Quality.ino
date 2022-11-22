@@ -7,41 +7,7 @@
 #include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
-// begin undo this block for feather 8266 based board
-// #include <BearSSLHelpers.h>
-// #include <CertStoreBearSSL.h>
-// #include <ESP8266WiFi.h>
-// #include <ESP8266WiFiAP.h>
-// #include <ESP8266WiFiGeneric.h>
-// #include <ESP8266WiFiMulti.h>
-// #include <ESP8266WiFiScan.h>
-// #include <ESP8266WiFiSTA.h>
-// #include <ESP8266WiFiType.h>
-// #include <WiFiClient.h>
-// #include <WiFiClientSecure.h>
-// #include <WiFiClientSecureAxTLS.h>
-// #include <WiFiClientSecureBearSSL.h>
-// #include <WiFiServer.h>
-// #include <WiFiServerSecure.h>
-// #include <WiFiServerSecureAxTLS.h>
-// #include <WiFiServerSecureBearSSL.h>
-// #include <WiFiUdp.h>
-// end this block for feather 8266 based board
-
-//#include <SPI.h>
-//#include <Wire.h>
-
-
-
-// undo this block for feather 8266 based board
-// #include <WiFiUdp.h>
-// end this block for feather 8266 based board
-
-// esp32 and esp8266 network info 
-// https://diyprojects.io/esp32-how-to-connect-local-wifi-network-arduino-code/
-// or
-// https://diyprojects.io/esp8266-web-client-tcp-ip-communication-examples-esp8266wifi-esp866httpclient/
-
+// Adafruit Huzzah32 ESP32 Feather info:
 // https://learn.adafruit.com/adafruit-huzzah32-esp32-feather
 
 
@@ -51,6 +17,7 @@
 
   It is based off of the work referenced below.
   Written by Chris Tirpak 
+
   BSD license, all text above must be included in any redistribution
    
   This is a library for the BME680 gas, humidity, temperature & pressure sensor
@@ -68,7 +35,6 @@
   Written by Limor Fried & Kevin Townsend for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
-
 
 //todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
@@ -190,11 +156,7 @@ void loop() {
   Serial.print("  voltage = ");
   Serial.println(voltage, 3);
 
-  // here is the wire format for the influxDB we are using
-  // bme680,location=bakerz Temp=26.43,TempF=79.57,hPa=771.98,RH=21.08,VOCKOhms=101.33,Altitude=2236.10,Vraw=2367,Voltage=3.812
-
   // conect UDP to InfluxDB server and send data 
-  
   //if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
   if(udp.connect(IPAddress(255,255,255,255), 8089)) {
       //Serial.println("UDP connected"); // Debug Only
