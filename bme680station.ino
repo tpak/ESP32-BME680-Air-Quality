@@ -4,9 +4,6 @@
 #include <Adafruit_Sensor.h>
 #include <bme68x_defs.h>
 #include <bme68x.h>
-// #include <WiFi.h> // from ESP32 library - comment out for 8266
-// #include <WiFiMulti.h> // from ESP32 library - comment out for 8266
-//#include <HTTPClient.h>
 #include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
@@ -87,10 +84,11 @@ void setup() {
   
   Serial.begin(115200);
   while (!Serial);
-  // delay while serial realy gets started
+  // delay while serial really gets started
   delay(5000);
   Serial.println();
-  Serial.println(F("bme680station  debug"));
+  Serial.println(F("bme680station debug"));
+  Serial.println(F("bme680station version 0.1.0"));
   Serial.flush();
 
   // countdown a brief delay 
@@ -119,39 +117,29 @@ void setup() {
   // set the sea level pressure to 1013.25 hPa
   // bme.setSeaLevelPressure(SEALEVELPRESSURE_HPA);
 
-  // configure at least one wifi AP to select from 
-  // todo will make this configurable, etc 
-  // wifiMulti.addAP("BringBeerTo363", "BudLightBeer");
-
-  // if((wifiMul
-  // Local intialization. Once its business is done, there is no need to keep it around
+  // wifi setup
+  // https://github.com/tzapu/WiFiManager
+  // https://dronebotworkshop.com/wifimanager/
+  // wifimanager will also let you collect other config data, see references
   WiFiManager wifiManager;
-  // wifiManager.resetSettings(); // uncomment to reset wifi settings
+
   // Uncomment and run it once, if you want to erase all the stored information
   //wifiManager.resetSettings();
 
-  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
-  // wifiManager.setAPCallback(configModeCallback);
-
   //fetches ssid and pass from eeprom and tries to connect
   //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
   if(!wifiManager.autoConnect("AutoConnectAP")) {
     Serial.println("failed to connect and hit timeout");
-    //reset and try again, or maybe put it to deep sleep
     ESP.restart();
     delay(1000);
   }
 
   //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
+  Serial.println("WifFi connected.");
 
   // print the wifi info to serial
   printWifiStatusToSerial();
-  // print the local IP address to serial
-  // Serial.println(WiFi.localIP());
-
 
 }
 
