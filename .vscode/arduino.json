@@ -1,7 +1,7 @@
 {
     "sketch": "bme680station.ino",
+    "configuration": "LoopCore=1,EventsCore=1,PartitionScheme=default,CPUFreq=240,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none,EraseFlash=none",
     "board": "esp32:esp32:featheresp32",
-    "configuration": "FlashFreq=80,UploadSpeed=115200,DebugLevel=none,PartitionScheme=default",
-    "port": "/dev/tty.SLAB_USBtoUART",
+    "port": "/dev/tty.usbserial-0160E5AB",
     "output": "build"
 }

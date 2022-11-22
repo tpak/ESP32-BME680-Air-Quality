@@ -1,4 +1,14 @@
 
+#include <Arduino.h>
+#include <Adafruit_BME680.h>
+#include <Adafruit_Sensor.h>
+#include <bme68x_defs.h>
+#include <bme68x.h>
+#include <WiFi.h> // from ESP32 library - comment out for 8266
+#include <WiFiMulti.h> // from ESP32 library - comment out for 8266
+//#include <HTTPClient.h>
+#include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
+
 // begin undo this block for feather 8266 based board
 // #include <BearSSLHelpers.h>
 // #include <CertStoreBearSSL.h>
@@ -20,17 +30,10 @@
 // #include <WiFiUdp.h>
 // end this block for feather 8266 based board
 
-#include <Arduino.h>
 //#include <SPI.h>
 //#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME680.h>
 
-#include <WiFi.h> // from ESP32 library - comment out for 8266
-#include <WiFiMulti.h> // from ESP32 library - comment out for 8266
 
-//#include <HTTPClient.h>
-#include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
 
 // undo this block for feather 8266 based board
 // #include <WiFiUdp.h>
@@ -84,7 +87,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
   // delay while serial realy gets started
-  delay(1000);
+  delay(5000);
   Serial.println();
   Serial.println(F("bme680station  debug"));
   Serial.flush();
