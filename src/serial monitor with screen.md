@@ -1,4 +1,4 @@
-How to use screen on Mac to watch serial port traffic.
+How to use screen on Mac to watch serial port traffic - useful for debugging Arduino and similar boards .
 
 - find the serial port you want to watch:
 ```
@@ -11,8 +11,8 @@ How to use screen on Mac to watch serial port traffic.
     ❯ screen /dev/cu.usbserial-0160E5AB 115200
 ```
 
-## [How to get out of screen](https://stackoverflow.com/questions/4847691/how-do-i-get-out-of-screen-without-typing-exit)
+## [How to get out of screen (link)](https://stackoverflow.com/questions/4847691/how-do-i-get-out-of-screen-without-typing-exit)
 
-on Mac with prompt: 
+tl;dr on Mac with prompt: 
 
     ^a ^\
