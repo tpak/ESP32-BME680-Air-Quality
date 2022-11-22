@@ -116,7 +116,6 @@ void setup() {
 
   // configure at least one wifi AP to select from 
   // todo will make this configurable, etc 
-  wifiMulti.addAP("boomcacka", "LianneMcVey22");
   wifiMulti.addAP("BringBeerTo363", "BudLightBeer");
 
   if((wifiMulti.run() == WL_CONNECTED)) {
