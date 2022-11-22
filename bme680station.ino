@@ -200,19 +200,42 @@ void loop() {
 }
 
 void printWifiStatusToSerial() {
+    // I let Copilot re-do this for me
+    // print the SSID of the network you're attached to:
     Serial.println();
     Serial.println(F("Wifi connection info:"));
+    byte mac[6];
+    WiFi.macAddress(mac);
+    Serial.print(F("MAC: "));
+    Serial.print(mac[5], HEX);
+    Serial.print(":");
+    Serial.print(mac[4], HEX);
+    Serial.print(":");
+    Serial.print(mac[3], HEX);
+    Serial.print(":");
+    Serial.print(mac[2], HEX);
+    Serial.print(":");
+    Serial.print(mac[1], HEX);
+    Serial.print(":");
+    Serial.println(mac[0], HEX);
+    Serial.println(F("Wifi Status:"));
+    Serial.print(F("Status: "));
+    Serial.println(WiFi.status());
     Serial.print(F("SSID: "));
     Serial.println(WiFi.SSID());
-    Serial.print(F("IP Address: "));
+    Serial.print(F("BSSID: "));
+    Serial.println(WiFi.BSSIDstr());
+    Serial.print(F("Channel: "));
+    Serial.println(WiFi.channel());
+    Serial.print(F("IP address: "));
     Serial.println(WiFi.localIP());
-    Serial.print(F("Subnet Mask: "));
+    Serial.print(F("Subnet mask: "));
     Serial.println(WiFi.subnetMask());
     Serial.print(F("Gateway IP: "));
     Serial.println(WiFi.gatewayIP());
-    long rssi = WiFi.RSSI();
-    Serial.print(F("RSSI: "));
-    Serial.print(WiFi.RSSI());
-    Serial.println(F(" dBm"));
+    Serial.print(F("DNS: "));
+    Serial.println(WiFi.dnsIP());
+    Serial.print(F("Signal strength (RSSI): "));
+    Serial.println(WiFi.RSSI());
     Serial.println();
 }
