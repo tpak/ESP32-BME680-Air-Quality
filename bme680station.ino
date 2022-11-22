@@ -4,10 +4,8 @@
 #include <Adafruit_Sensor.h>
 #include <bme68x_defs.h>
 #include <bme68x.h>
-#include <WiFi.h> // from ESP32 library - comment out for 8266
-#include <WiFiMulti.h> // from ESP32 library - comment out for 8266
-//#include <HTTPClient.h>
 #include "AsyncUDP.h"  // from ESP32 library - comment out for 8266
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
 // begin undo this block for feather 8266 based board
 // #include <BearSSLHelpers.h>
@@ -77,7 +75,7 @@
 
 Adafruit_BME680 bme; // I2C -- see Adafruit examples for other methods
 
-WiFiMulti wifiMulti;
+// WiFiMulti wifiMulti;
 // ESP8266WiFiMulti wifiMulti;
 AsyncUDP udp;
 // WiFiUDP udp;
@@ -86,14 +84,15 @@ void setup() {
   
   Serial.begin(115200);
   while (!Serial);
-  // delay while serial realy gets started
+  // delay while serial really gets started
   delay(5000);
   Serial.println();
-  Serial.println(F("bme680station  debug"));
+  Serial.println(F("bme680station debug"));
+  Serial.println(F("bme680station version 0.1.0"));
   Serial.flush();
 
   // countdown a brief delay 
-  for(int waitSeconds = 4; waitSeconds > 0; waitSeconds--) {
+  for(int waitSeconds = 5; waitSeconds > 0; waitSeconds--) {
         Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
         Serial.flush();
         delay(1000);
@@ -114,13 +113,33 @@ void setup() {
   bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
   bme.setGasHeater(320, 150); // 320*C for 150 ms
 
-  // configure at least one wifi AP to select from 
-  // todo will make this configurable, etc 
-  wifiMulti.addAP("BringBeerTo363", "BudLightBeer");
+  // todo add a way to calibrate for this - google around there was an example
+  // set the sea level pressure to 1013.25 hPa
+  // bme.setSeaLevelPressure(SEALEVELPRESSURE_HPA);
 
-  if((wifiMulti.run() == WL_CONNECTED)) {
-    printWifiStatusToSerial();
+  // wifi setup
+  // https://github.com/tzapu/WiFiManager
+  // https://dronebotworkshop.com/wifimanager/
+  // wifimanager will also let you collect other config data, see references
+  WiFiManager wifiManager;
+
+  // Uncomment and run it once, if you want to erase all the stored information
+  //wifiManager.resetSettings();
+
+  //fetches ssid and pass from eeprom and tries to connect
+  //if it does not connect it starts an access point with the specified name
+  //and goes into a blocking loop awaiting configuration
+  if(!wifiManager.autoConnect("AutoConnectAP")) {
+    Serial.println("failed to connect and hit timeout");
+    ESP.restart();
+    delay(1000);
   }
+
+  //if you get here you have connected to the WiFi
+  Serial.println("WifFi connected.");
+
+  // print the wifi info to serial
+  printWifiStatusToSerial();
 
 }
 
