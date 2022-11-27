@@ -233,11 +233,11 @@ void loop() {
   Serial.println(" %");
 
   Serial.print("IAQ: = ");
-  Serial.print(iaq);
-  Serial.println("gas resistance = ");
-  Serial.print(gas);
-  Serial.println("iaq accuracy = ");
-  Serial.print(iaqAccuracy);
+  Serial.println(iaq);
+  Serial.print("gas resistance = ");
+  Serial.println(gas);
+  Serial.print("iaq accuracy = ");
+  Serial.println(iaqAccuracy);
 
 
   Serial.print("Approx. Altitude = ");
