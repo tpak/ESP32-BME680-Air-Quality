@@ -6,7 +6,7 @@
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
 // sensor libraries:
-#include <Adafruit_BME680.h>
+#include <Adafruit_BME680.h> 
 #include <Adafruit_Sensor.h>
 #include <bme68x_defs.h>
 #include <bme68x.h>
@@ -15,6 +15,7 @@
 // Adafruit Huzzah32 ESP32 Feather info:
 // https://learn.adafruit.com/adafruit-huzzah32-esp32-feather
 
+// Adafruit BME680 using I2C -- see Adafruit examples for other methods
 
 /***************************************************************************
   Copyright 2020, Chris Tirpak 
@@ -42,8 +43,6 @@
 //todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-// Adafruit_BME680 bme; // I2C -- see Adafruit examples for other methods
-
 // Helper functions declarations
 void checkIaqSensorStatus(void);
 void errLeds(void);
@@ -61,25 +60,23 @@ AsyncUDP udp;
 void setup() {
   
   Serial.begin(115200);
-  
   while (!Serial) delay(2000); // Wait for serial to be ready
-  Serial.println("BSEC basic2 sample serial init complete.");
-
   // delay for humans to catch up over on the serial port
   delay(5000);
   Serial.println();
+  Serial.println(F("serial init complete."));
   Serial.println(F("bme680station debug"));
   Serial.println(F("bme680station version 0.1.1"));
   Serial.flush();
 
   Wire.begin();
   
-  iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire);
+  iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire); // Adafruit uses secondary address
   output = "\nBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
   Serial.println(output);
   checkIaqSensorStatus();
 
-  // countdown a brief delay again for the humans
+  // countdown a brief delay again for the humans on the serial port
   for(int waitSeconds = 5; waitSeconds > 0; waitSeconds--) {
         Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
         Serial.flush();
@@ -108,36 +105,13 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   
-  // configure the BME680 sensor
-  // if (!bme.begin()) {
-  //   Serial.println("Could not find a valid BME680 sensor, check wiring!");
-  //   while (1);
-  // }
-
-  // // BME680 oversampling and filter initialization
-  // bme.setTemperatureOversampling(BME680_OS_8X);
-  // bme.setHumidityOversampling(BME680_OS_2X);
-  // bme.setPressureOversampling(BME680_OS_4X);
-  // bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
-  // bme.setGasHeater(320, 150); // 320*C for 150 ms
-
-
-  // todo add a way to calibrate for this - google around there was an example
-  // set the sea level pressure to 1013.25 hPa
-  // bme.setSeaLevelPressure(SEALEVELPRESSURE_HPA);
-
-  // wifi setup
-  // https://github.com/tzapu/WiFiManager
-  // https://dronebotworkshop.com/wifimanager/
-  // wifimanager will also let you collect other config data, see references
   WiFiManager wifiManager;
-
   // Uncomment and run it once, if you want to erase all the stored information
   //wifiManager.resetSettings();
 
-  //fetches ssid and pass from eeprom and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //and goes into a blocking loop awaiting configuration
+  // fetches ssid and pass from eeprom and tries to connect
+  // if it does not connect it starts an access point with the specified name
+  // and goes into a blocking loop awaiting configuration
   if(!wifiManager.autoConnect("AutoConnectAP")) {
     Serial.println("failed to connect and hit timeout");
     ESP.restart();
@@ -157,21 +131,6 @@ void loop() {
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
   unsigned long time_trigger = millis();
 
-  // grab and process a reading from the BME680 
-  // if (! bme.performReading()) {
-  //   Serial.println("Failed to perform reading :(");
-  //   return;
-  // }
-
-  // float tempC = (bme.temperature);
-  // float tempF = ((tempC * (9.0/5.0)) + 32.0);
-  // float pressure = (bme.pressure / 100.0);
-  // float humidity = (bme.humidity);
-  // float gas = (bme.gas_resistance / 1000.0);
-  // float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA));
-  // int voltageRaw = analogRead(35);
-  // float voltage = ((( float(voltageRaw) * 2.0) / 4096.0) * 3.3);
-
   float tempC = 0.00;
   float tempF = 0.00;
   float pressure = 0.00;
@@ -184,7 +143,6 @@ void loop() {
   float iaqStatic =  0.00;
   float iaqCO2 =  0.00;
   float breath =  0.00;
-
 
   if (iaqSensor.run()) {
     tempC = (iaqSensor.rawTemperature);
@@ -208,26 +166,22 @@ void loop() {
   // float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA));
   float altitude = (pressure / 1013.25);
   
-  
+  // get battery voltage 
   int voltageRaw = analogRead(35);
   float voltage = ((( float(voltageRaw) * 2.0) / 4096.0) * 3.3);
-
 
   Serial.println();
   Serial.print("Elapsed ms = ");
   Serial.print(time_trigger);
-
   Serial.println();
   Serial.print("Temperature = ");
   Serial.print(tempC);
   Serial.print(" *C  or ");
   Serial.print(tempF);
   Serial.println(" *F");
-  
   Serial.print("Pressure = ");
   Serial.print(pressure);
   Serial.println(" hPa");
-
   Serial.print("Humidity = ");
   Serial.print(humidity);
   Serial.println(" %");
@@ -238,7 +192,6 @@ void loop() {
   Serial.println(gas);
   Serial.print("iaq accuracy = ");
   Serial.println(iaqAccuracy);
-
 
   Serial.print("Approx. Altitude = ");
   Serial.print(altitude);
@@ -266,11 +219,11 @@ void loop() {
       udp.print(String(influxData));
       // udp.endPacket();
 
-      delay(50); //Not really sure if needed....
+      delay(50); //Not really sure if needed ... but it works
   }
 
-  digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level)
-  delay(10000);
+  digitalWrite(LED_BUILTIN, LOW);   // turn the LED off
+  delay(3 * 1000); 
 }
 
 void printWifiStatusToSerial() {
@@ -313,7 +266,6 @@ void printWifiStatusToSerial() {
     Serial.println(WiFi.RSSI());
     Serial.println();
 }
-
 
 // Helper function definitions
 void checkIaqSensorStatus(void)
