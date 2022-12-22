@@ -66,7 +66,7 @@ void setup()
   // delay for humans to catch up over on the serial port
   delay(5000);
   Serial.println();
-  Serial.println(F("serial init complete."));
+  Serial.println(F("serial init complete"));
   Serial.println(F("bme680station debug"));
   Serial.println(F("bme680station version 0.1.1"));
   Serial.flush();
@@ -81,7 +81,8 @@ void setup()
   // countdown a brief delay again for the humans on the serial port
   for (int waitSeconds = 5; waitSeconds > 0; waitSeconds--)
   {
-    Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
+    output = "[SETUP] WAIT " + String(waitSeconds) + "...";
+    Serial.println(output);
     Serial.flush();
     delay(1000);
   }
@@ -101,6 +102,7 @@ void setup()
 
   iaqSensor.updateSubscription(sensorList, 10, BSEC_SAMPLE_RATE_LP);
   checkIaqSensorStatus();
+  // initialize the sensor
 
   // Print the header
   // output = "Timestamp [ms], raw temperature [°C], pressure [hPa], raw relative humidity [%], gas [Ohm], IAQ, IAQ accuracy, temperature [°C], relative humidity [%], Static IAQ, CO2 equivalent, breath VOC equivalent";
@@ -176,37 +178,62 @@ void loop()
   int voltageRaw = analogRead(35);
   float voltage = (((float(voltageRaw) * 2.0) / 4096.0) * 3.3);
 
-  Serial.println();
-  Serial.print("Elapsed ms = ");
-  Serial.print(time_trigger);
-  Serial.println();
-  Serial.print("Temperature = ");
-  Serial.print(tempC);
-  Serial.print(" *C  or ");
-  Serial.print(tempF);
-  Serial.println(" *F");
-  Serial.print("Pressure = ");
-  Serial.print(pressure);
-  Serial.println(" hPa");
-  Serial.print("Humidity = ");
-  Serial.print(humidity);
-  Serial.println(" %");
+  // use a single output variable to save memory and keep the literals
+    String output = 
+                  String("Elapsed ms = ") +
+                  String(time_trigger) + "," +
+                  String("Temperature in C = ") +
+                  String(tempC) + "," +
+                  String("Temperature in F = ") +
+                  String(tempF) + "," +
+                  String("Pressure = ") +
+                  String(pressure) + "," +
+                  String("Humidity = ") +
+                  String(humidity) + "," +
+                  String("Gas = ") +
+                  String(gas) + "," +
+                  String("IAQ = ") +
+                  String(iaq) + "," +
+                  String("IAQ Accuracy = ") +
+                  String(iaqAccuracy) + "," +
+                  String("IAQ Temp C = ") +
+                  String(iaqTempC) + "," +
+                  String("IAQ Humidity = ") +
+                  String(iaqhumidity) + "," +
+                  String("IAQ Static = ") +
+                  String(iaqStatic) + "," +
+                  String("IAQ CO2 = ") +
+                  String(iaqCO2) + "," +
+                  String("Breath VOC = ") +
+                  String(breath) + "," +
+                  String("Altitude = ") +
+                  String(altitude) + "," +
+                  String("Voltage RAW = ") +
+                  String(voltageRaw) + "," +
+                  String("Voltage = ") +
+                  String(voltage);
 
-  Serial.print("IAQ: = ");
-  Serial.println(iaq);
-  Serial.print("gas resistance = ");
-  Serial.println(gas);
-  Serial.print("iaq accuracy = ");
-  Serial.println(iaqAccuracy);
+  Serial.println(output);
 
-  Serial.print("Approx. Altitude = ");
-  Serial.print(altitude);
-  Serial.println(" m");
 
-  Serial.print("Voltage RAW from pin: ");
-  Serial.print(voltageRaw);
-  Serial.print("  voltage = ");
-  Serial.println(voltage, 3);
+
+      // String output = 
+    //               String("Elapsed ms = ") +
+    //               String(time_trigger) + "," +
+    //               String(tempC) + "," +
+    //               String(pressure) + "," +
+    //               String(humidity) + "," +
+    //               String(gas) + "," +
+    //               String(iaq) + "," +
+    //               String(iaqAccuracy) + "," +
+    //               String(iaqTempC) + "," +
+    //               String(iaqhumidity) + "," +
+    //               String(iaqStatic) + "," +
+    //               String(iaqCO2) + "," +
+    //               String(breath) + "," +
+    //               String(altitude) + "," +
+    //               String(voltage);
+
 
   // conect UDP to InfluxDB server and send data
   // if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
@@ -219,9 +246,9 @@ void loop()
                          ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
                          ",Voltage=" + String(voltage));
 
-    Serial.println("send influxdata over UDP:");
-    Serial.println(influxData);
-    Serial.println();
+    // Serial.println("send influxdata over UDP:");
+    // Serial.println(influxData);
+    // Serial.println();
 
     udp.print(String(influxData));
     // udp.endPacket();
@@ -230,13 +257,15 @@ void loop()
   }
 
   digitalWrite(LED_BUILTIN, LOW); // turn the LED off
-  delay(3 * 1000);
+  // delay(5 * (60 * 1000)); // minutes
+  delay(5 * 1000);  // seconds
 }
 
 void printWifiStatusToSerial()
 {
   // I let Copilot re-do this for me
   // print the SSID of the network you're attached to:
+  // refactor and use a single output variable to save memory 
   Serial.println();
   Serial.println(F("Wifi connection info:"));
   byte mac[6];
@@ -319,3 +348,4 @@ void errLeds(void)
   digitalWrite(LED_BUILTIN, LOW);
   delay(100);
 }
+
