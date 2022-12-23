@@ -24,7 +24,8 @@
             "cppStandard": "c++17",
             "defines": [
                 "USBCON"
-            ]
+            ],
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
         },
         {
             "name": "Arduino",
