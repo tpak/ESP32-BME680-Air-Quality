@@ -74,7 +74,7 @@ void setup()
   Wire.begin();
 
   iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire); // Adafruit uses secondary address
-  output = "\nBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
+  output = "\n\rBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
   Serial.println(output);
   checkIaqSensorStatus();
 
@@ -133,8 +133,7 @@ void setup()
 
 void loop()
 {
-  // blink while we process the BME680
-  digitalWrite(LED_BUILTIN, HIGH); // turn the LED off by making the voltage LOW
+  digitalWrite(LED_BUILTIN, HIGH); // led on while we process the BME680
   unsigned long time_trigger = millis();
 
   float tempC = 0.00;
@@ -178,70 +177,47 @@ void loop()
   int voltageRaw = analogRead(35);
   float voltage = (((float(voltageRaw) * 2.0) / 4096.0) * 3.3);
 
-  // use a single output variable to save memory and keep the literals
-    String output = 
-                  String("Elapsed ms = ") +
-                  String(time_trigger) + "," +
-                  String("Temperature in C = ") +
-                  String(tempC) + "," +
-                  String("Temperature in F = ") +
-                  String(tempF) + "," +
-                  String("Pressure = ") +
-                  String(pressure) + "," +
-                  String("Humidity = ") +
-                  String(humidity) + "," +
-                  String("Gas = ") +
-                  String(gas) + "," +
-                  String("IAQ = ") +
-                  String(iaq) + "," +
-                  String("IAQ Accuracy = ") +
-                  String(iaqAccuracy) + "," +
-                  String("IAQ Temp C = ") +
-                  String(iaqTempC) + "," +
-                  String("IAQ Humidity = ") +
-                  String(iaqhumidity) + "," +
-                  String("IAQ Static = ") +
-                  String(iaqStatic) + "," +
-                  String("IAQ CO2 = ") +
-                  String(iaqCO2) + "," +
-                  String("Breath VOC = ") +
-                  String(breath) + "," +
-                  String("Altitude = ") +
-                  String(altitude) + "," +
-                  String("Voltage RAW = ") +
-                  String(voltageRaw) + "," +
-                  String("Voltage = ") +
-                  String(voltage);
+  String output =
+      String("Elapsed ms = ") +
+      String(time_trigger) + "," +
+      String("Temperature in C = ") +
+      String(tempC) + "," +
+      String("Temperature in F = ") +
+      String(tempF) + "," +
+      String("Pressure = ") +
+      String(pressure) + "," +
+      String("Humidity = ") +
+      String(humidity) + "," +
+      String("Gas = ") +
+      String(gas) + "," +
+      String("IAQ = ") +
+      String(iaq) + "," +
+      String("IAQ Accuracy = ") +
+      String(iaqAccuracy) + "," +
+      String("IAQ Temp C = ") +
+      String(iaqTempC) + "," +
+      String("IAQ Humidity = ") +
+      String(iaqhumidity) + "," +
+      String("IAQ Static = ") +
+      String(iaqStatic) + "," +
+      String("IAQ CO2 = ") +
+      String(iaqCO2) + "," +
+      String("Breath VOC = ") +
+      String(breath) + "," +
+      String("Altitude = ") +
+      String(altitude) + "," +
+      String("Voltage RAW = ") +
+      String(voltageRaw) + "," +
+      String("Voltage = ") +
+      String(voltage);
 
   Serial.println(output);
-
-
-
-      // String output = 
-    //               String("Elapsed ms = ") +
-    //               String(time_trigger) + "," +
-    //               String(tempC) + "," +
-    //               String(pressure) + "," +
-    //               String(humidity) + "," +
-    //               String(gas) + "," +
-    //               String(iaq) + "," +
-    //               String(iaqAccuracy) + "," +
-    //               String(iaqTempC) + "," +
-    //               String(iaqhumidity) + "," +
-    //               String(iaqStatic) + "," +
-    //               String(iaqCO2) + "," +
-    //               String(breath) + "," +
-    //               String(altitude) + "," +
-    //               String(voltage);
-
 
   // conect UDP to InfluxDB server and send data
   // if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
   if (udp.connect(IPAddress(255, 255, 255, 255), 8089))
   {
-    // Serial.println("UDP connected"); // Debug Only
     delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
-
     String influxData = ("bme680,location=363Office Temp=" + String(tempC) + ",TempF=" + String(tempF) + ",hPa=" + String(pressure) +
                          ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
                          ",Voltage=" + String(voltage));
@@ -249,59 +225,39 @@ void loop()
     // Serial.println("send influxdata over UDP:");
     // Serial.println(influxData);
     // Serial.println();
-
     udp.print(String(influxData));
     // udp.endPacket();
-
     delay(50); // Not really sure if needed ... but it works
   }
 
   digitalWrite(LED_BUILTIN, LOW); // turn the LED off
   // delay(5 * (60 * 1000)); // minutes
-  delay(5 * 1000);  // seconds
+  delay(5 * 1000); // seconds
 }
 
 void printWifiStatusToSerial()
 {
-  // I let Copilot re-do this for me
-  // print the SSID of the network you're attached to:
-  // refactor and use a single output variable to save memory 
-  Serial.println();
-  Serial.println(F("Wifi connection info:"));
   byte mac[6];
   WiFi.macAddress(mac);
-  Serial.print(F("MAC: "));
-  Serial.print(mac[5], HEX);
-  Serial.print(":");
-  Serial.print(mac[4], HEX);
-  Serial.print(":");
-  Serial.print(mac[3], HEX);
-  Serial.print(":");
-  Serial.print(mac[2], HEX);
-  Serial.print(":");
-  Serial.print(mac[1], HEX);
-  Serial.print(":");
-  Serial.println(mac[0], HEX);
-  Serial.println(F("Wifi Status:"));
-  Serial.print(F("Status: "));
-  Serial.println(WiFi.status());
-  Serial.print(F("SSID: "));
-  Serial.println(WiFi.SSID());
-  Serial.print(F("BSSID: "));
-  Serial.println(WiFi.BSSIDstr());
-  Serial.print(F("Channel: "));
-  Serial.println(WiFi.channel());
-  Serial.print(F("IP address: "));
-  Serial.println(WiFi.localIP());
-  Serial.print(F("Subnet mask: "));
-  Serial.println(WiFi.subnetMask());
-  Serial.print(F("Gateway IP: "));
-  Serial.println(WiFi.gatewayIP());
-  Serial.print(F("DNS: "));
-  Serial.println(WiFi.dnsIP());
-  Serial.print(F("Signal strength (RSSI): "));
-  Serial.println(WiFi.RSSI());
-  Serial.println();
+  output = "Wifi connection info:\n\r";
+  output += "MAC: ";
+  output += String(mac[5], HEX) + ":";
+  output += String(mac[4], HEX) + ":";
+  output += String(mac[3], HEX) + ":";
+  output += String(mac[2], HEX) + ":";
+  output += String(mac[1], HEX) + ":";
+  output += String(mac[0], HEX) + "\n\r";
+  output += "Wifi Status:\n\r";
+  output += "Status: " + String(WiFi.status()) + "\n\r";
+  output += "SSID: " + WiFi.SSID() + "\n\r";
+  output += "BSSID: " + WiFi.BSSIDstr() + "\n\r";
+  output += "Channel: " + String(WiFi.channel()) + "\n\r";
+  output += "IP address: " + WiFi.localIP().toString() + "\n\r";
+  output += "Subnet mask: " + WiFi.subnetMask().toString() + "\n\r";
+  output += "Gateway IP: " + WiFi.gatewayIP().toString() + "\n\r";
+  output += "DNS: " + WiFi.dnsIP().toString() + "\n\r";
+  output += "Signal strength (RSSI): " + String(WiFi.RSSI()) + "\n\r";
+  Serial.print(output);
 }
 
 // Helper function definitions
@@ -348,4 +304,3 @@ void errLeds(void)
   digitalWrite(LED_BUILTIN, LOW);
   delay(100);
 }
-
