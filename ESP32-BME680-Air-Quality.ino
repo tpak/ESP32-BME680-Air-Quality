@@ -177,42 +177,41 @@ void loop()
   int voltageRaw = analogRead(35);
   float voltage = (((float(voltageRaw) * 2.0) / 4096.0) * 3.3);
 
-  String output = 
-    String("Elapsed ms = ") +
-    String(time_trigger) + "," +
-    String("Temperature in C = ") +
-    String(tempC) + "," +
-    String("Temperature in F = ") +
-    String(tempF) + "," +
-    String("Pressure = ") +
-    String(pressure) + "," +
-    String("Humidity = ") +
-    String(humidity) + "," +
-    String("Gas = ") +
-    String(gas) + "," +
-    String("IAQ = ") +
-    String(iaq) + "," +
-    String("IAQ Accuracy = ") +
-    String(iaqAccuracy) + "," +
-    String("IAQ Temp C = ") +
-    String(iaqTempC) + "," +
-    String("IAQ Humidity = ") +
-    String(iaqhumidity) + "," +
-    String("IAQ Static = ") +
-    String(iaqStatic) + "," +
-    String("IAQ CO2 = ") +
-    String(iaqCO2) + "," +
-    String("Breath VOC = ") +
-    String(breath) + "," +
-    String("Altitude = ") +
-    String(altitude) + "," +
-    String("Voltage RAW = ") +
-    String(voltageRaw) + "," +
-    String("Voltage = ") +
-    String(voltage);
+  String output =
+      String("Elapsed ms = ") +
+      String(time_trigger) + "," +
+      String("Temperature in C = ") +
+      String(tempC) + "," +
+      String("Temperature in F = ") +
+      String(tempF) + "," +
+      String("Pressure = ") +
+      String(pressure) + "," +
+      String("Humidity = ") +
+      String(humidity) + "," +
+      String("Gas = ") +
+      String(gas) + "," +
+      String("IAQ = ") +
+      String(iaq) + "," +
+      String("IAQ Accuracy = ") +
+      String(iaqAccuracy) + "," +
+      String("IAQ Temp C = ") +
+      String(iaqTempC) + "," +
+      String("IAQ Humidity = ") +
+      String(iaqhumidity) + "," +
+      String("IAQ Static = ") +
+      String(iaqStatic) + "," +
+      String("IAQ CO2 = ") +
+      String(iaqCO2) + "," +
+      String("Breath VOC = ") +
+      String(breath) + "," +
+      String("Altitude = ") +
+      String(altitude) + "," +
+      String("Voltage RAW = ") +
+      String(voltageRaw) + "," +
+      String("Voltage = ") +
+      String(voltage);
 
   Serial.println(output);
-
 
   // conect UDP to InfluxDB server and send data
   // if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
@@ -220,8 +219,8 @@ void loop()
   {
     delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
     String influxData = ("bme680,location=363Office Temp=" + String(tempC) + ",TempF=" + String(tempF) + ",hPa=" + String(pressure) +
-      ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
-      ",Voltage=" + String(voltage));
+                         ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
+                         ",Voltage=" + String(voltage));
 
     // Serial.println("send influxdata over UDP:");
     // Serial.println(influxData);
@@ -233,7 +232,7 @@ void loop()
 
   digitalWrite(LED_BUILTIN, LOW); // turn the LED off
   // delay(5 * (60 * 1000)); // minutes
-  delay(5 * 1000);  // seconds
+  delay(5 * 1000); // seconds
 }
 
 void printWifiStatusToSerial()
@@ -305,4 +304,3 @@ void errLeds(void)
   digitalWrite(LED_BUILTIN, LOW);
   delay(100);
 }
-
