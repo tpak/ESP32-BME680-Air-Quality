@@ -231,8 +231,8 @@ void loop()
   }
 
   digitalWrite(LED_BUILTIN, LOW); // turn the LED off
-  // delay(5 * (60 * 1000)); // minutes
-  delay(5 * 1000); // seconds
+  delay(5 * (60 * 1000));         // minutes
+  // delay(10 * 1000); // seconds
 }
 
 void printWifiStatusToSerial()
