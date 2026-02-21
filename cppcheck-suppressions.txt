@@ -1,0 +1,8 @@
+// Suppress false positives for Arduino sketch conventions
+
+// setup() and loop() are called by the Arduino framework, not user code
+unusedFunction
+
+// Arduino and ESP32 headers are not available to cppcheck
+missingIncludeSystem
+missingInclude
