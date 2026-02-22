@@ -93,6 +93,19 @@ See `docker/README.md` for setup and usage. Key commands:
 
 Docker on macOS requires setting `UDP_HOST` in the firmware to the Mac's IP (broadcast UDP doesn't reach Docker containers).
 
+## Git Workflow
+
+All changes follow this workflow:
+
+1. Create a feature branch from `main`
+2. Commit changes, push, and open a PR
+3. Watch CI checks (test + lint) — must both pass
+4. Merge the PR with `--delete-branch` to clean up the remote branch
+5. Watch post-merge CI on `main` to confirm it stays green
+6. Prune stale remote tracking refs (`git remote prune origin`)
+
+Use `gh pr merge --merge --delete-branch` for merging. Always verify `git branch -a` is clean after.
+
 ## Testing
 
 Unit tests run on the host (no Arduino hardware needed). Testable functions are extracted into `bme680_functions.h` using `snprintf`/char buffers (no Arduino dependencies). The `String` shim in `test/arduino_string_compat.h` is retained for future use but not currently needed by tests.
