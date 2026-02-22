@@ -2,7 +2,9 @@
 #define ARDUINO_STRING_COMPAT_H
 
 // Minimal Arduino String shim for host-side unit testing.
-// Implements only what buildUdpPayload() needs.
+// buildUdpPayload() now uses snprintf/char buffers, so this shim is no
+// longer needed by tests. Retained for any future functions that use
+// Arduino String.
 
 #include <string>
 #include <cstdio>

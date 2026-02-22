@@ -61,6 +61,7 @@
 #define AP_NAME                  "AirQuality-Setup"
 #define MDNS_HOSTNAME            "airquality"
 #define UDP_SEND_DELAY_MS        50
+#define UDP_PAYLOAD_BUF_SIZE     512
 
 // Temperature offset to compensate for ESP32 self-heating (degrees C).
 // The BME680 mounted near the ESP32 reads ~2C higher than ambient.
@@ -84,8 +85,6 @@ void setupWiFiEvents(void);
 // Create an object of the class Bsec
 Bsec iaqSensor;
 
-String output;
-
 AsyncUDP udp;
 
 Preferences preferences;
@@ -108,7 +107,7 @@ void setup()
   Serial.println();
   Serial.println(F("serial init complete"));
   Serial.println(F("bme680station debug"));
-  Serial.println(F("bme680station version 0.3.0"));
+  Serial.println(F("bme680station version 0.4.0"));
   Serial.flush();
 
   // Load runtime config from NVS (UDP host, port, read interval)
@@ -123,8 +122,9 @@ void setup()
       errLeds();
     }
   }
-  output = "\n\rBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
-  Serial.println(output);
+  Serial.printf("\n\rBSEC library version %d.%d.%d.%d\n",
+                iaqSensor.version.major, iaqSensor.version.minor,
+                iaqSensor.version.major_bugfix, iaqSensor.version.minor_bugfix);
   checkIaqSensorStatus();
 
   // Apply temperature offset to compensate for ESP32 self-heating
@@ -139,8 +139,7 @@ void setup()
   // countdown a brief delay again for the humans on the serial port
   for (int waitSeconds = 5; waitSeconds > 0; waitSeconds--)
   {
-    output = "[SETUP] WAIT " + String(waitSeconds) + "...";
-    Serial.println(output);
+    Serial.printf("[SETUP] WAIT %d...\n", waitSeconds);
     Serial.flush();
     delay(1000);
   }
@@ -211,9 +210,7 @@ void setup()
 
   // Start mDNS so device is reachable at airquality.local
   if (MDNS.begin(MDNS_HOSTNAME)) {
-    Serial.print(F("mDNS started: "));
-    Serial.print(MDNS_HOSTNAME);
-    Serial.println(F(".local"));
+    Serial.printf("mDNS started: %s.local\n", MDNS_HOSTNAME);
   } else {
     Serial.println(F("mDNS failed to start"));
   }
@@ -222,13 +219,8 @@ void setup()
   esp_task_wdt_init(WATCHDOG_TIMEOUT_S, true);
   esp_task_wdt_add(NULL);
 
-  Serial.print(F("Read interval: "));
-  Serial.print(cfgReadIntervalSec);
-  Serial.println(F(" seconds"));
-  Serial.print(F("UDP target: "));
-  Serial.print(cfgUdpHost);
-  Serial.print(F(":"));
-  Serial.println(cfgUdpPort);
+  Serial.printf("Read interval: %d seconds\n", cfgReadIntervalSec);
+  Serial.printf("UDP target: %s:%d\n", cfgUdpHost, cfgUdpPort);
 
   // Force first reading immediately
   lastSensorRead = 0;
@@ -266,70 +258,44 @@ void loop()
   float compRH = 0.00;
   float iaqStatic = 0.00;
   float iaqCO2 = 0.00;
-  float breath = 0.00;
+  float breathVoc = 0.00;
 
   if (iaqSensor.run())
   {
-    tempC = (iaqSensor.rawTemperature);
+    tempC = iaqSensor.rawTemperature;
     tempF = celsiusToFahrenheit(tempC);
-    pressure = (iaqSensor.pressure);
-    humidity = (iaqSensor.rawHumidity);
-    gas = (iaqSensor.gasResistance);
-    iaq = (iaqSensor.iaq);
-    iaqAccuracyVal = (iaqSensor.iaqAccuracy);
-    compTemp = (iaqSensor.temperature);
-    compRH = (iaqSensor.humidity);
-    iaqStatic = (iaqSensor.staticIaq);
-    iaqCO2 = (iaqSensor.co2Equivalent);
-    breath = (iaqSensor.breathVocEquivalent);
+    pressure = iaqSensor.pressure;
+    humidity = iaqSensor.rawHumidity;
+    gas = iaqSensor.gasResistance;
+    iaq = iaqSensor.iaq;
+    iaqAccuracyVal = iaqSensor.iaqAccuracy;
+    compTemp = iaqSensor.temperature;
+    compRH = iaqSensor.humidity;
+    iaqStatic = iaqSensor.staticIaq;
+    iaqCO2 = iaqSensor.co2Equivalent;
+    breathVoc = iaqSensor.breathVocEquivalent;
   }
   else
   {
     checkIaqSensorStatus();
   }
 
-  // fix this to adjust for actual altitude
   float altitude = pressureToAltitude(pressure);
 
   // get battery voltage
   int voltageRaw = analogRead(35);
   float voltage = adcToVoltage(voltageRaw);
 
-  String serialOutput =
-      String("Elapsed ms = ") +
-      String(now) + "," +
-      String("Temperature in C = ") +
-      String(tempC) + "," +
-      String("Temperature in F = ") +
-      String(tempF) + "," +
-      String("Pressure = ") +
-      String(pressure) + "," +
-      String("Humidity = ") +
-      String(humidity) + "," +
-      String("Gas = ") +
-      String(gas) + "," +
-      String("IAQ = ") +
-      String(iaq) + "," +
-      String("IAQ Accuracy = ") +
-      String(iaqAccuracyVal) + "," +
-      String("Comp Temp C = ") +
-      String(compTemp) + "," +
-      String("Comp Humidity = ") +
-      String(compRH) + "," +
-      String("IAQ Static = ") +
-      String(iaqStatic) + "," +
-      String("IAQ CO2 = ") +
-      String(iaqCO2) + "," +
-      String("Breath VOC = ") +
-      String(breath) + "," +
-      String("Altitude = ") +
-      String(altitude) + "," +
-      String("Voltage RAW = ") +
-      String(voltageRaw) + "," +
-      String("Voltage = ") +
-      String(voltage);
-
-  Serial.println(serialOutput);
+  Serial.printf("Elapsed ms = %lu, Temp C = %.2f, Temp F = %.2f, "
+                "Pressure = %.2f, Humidity = %.2f, Gas = %.2f, "
+                "IAQ = %.2f, IAQ Accuracy = %d, Comp Temp C = %.2f, "
+                "Comp RH = %.2f, Static IAQ = %.2f, CO2 = %.2f, "
+                "Breath VOC = %.2f, Altitude = %.2f, "
+                "Vraw = %d, Voltage = %.2f\n",
+                now, tempC, tempF, pressure, humidity, gas,
+                iaq, iaqAccuracyVal, compTemp, compRH,
+                iaqStatic, iaqCO2, breathVoc, altitude,
+                voltageRaw, voltage);
 
   // Send InfluxDB line protocol over UDP to time-series database
   // Skip UDP send if WiFi is down — sensor reads still happen
@@ -338,16 +304,17 @@ void loop()
     if (targetIP.fromString(cfgUdpHost)) {
       if (udp.connect(targetIP, cfgUdpPort)) {
         delay(UDP_SEND_DELAY_MS);
-        String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas,
-                                             altitude, voltageRaw, voltage,
-                                             iaq, iaqAccuracyVal, iaqStatic,
-                                             iaqCO2, breath, compTemp, compRH);
-        udp.print(String(udpPayload));
+        char udpBuf[UDP_PAYLOAD_BUF_SIZE];
+        buildUdpPayload(udpBuf, sizeof(udpBuf),
+                        tempC, tempF, pressure, humidity, gas,
+                        altitude, voltageRaw, voltage,
+                        iaq, iaqAccuracyVal, iaqStatic,
+                        iaqCO2, breathVoc, compTemp, compRH);
+        udp.print(udpBuf);
         delay(UDP_SEND_DELAY_MS);
       }
     } else {
-      Serial.print(F("Invalid UDP host: "));
-      Serial.println(cfgUdpHost);
+      Serial.printf("Invalid UDP host: %s\n", cfgUdpHost);
     }
   } else {
     Serial.println(F("WiFi disconnected — skipping UDP send"));
@@ -371,8 +338,7 @@ void setupWiFiEvents(void)
         WiFi.reconnect();
         break;
       case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-        Serial.print(F("WiFi connected, IP: "));
-        Serial.println(WiFi.localIP());
+        Serial.printf("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
         wifiConnected = true;
         digitalWrite(LED_BUILTIN, HIGH); // LED on = connected
         break;
@@ -420,25 +386,27 @@ void printWifiStatusToSerial()
 {
   byte mac[6];
   WiFi.macAddress(mac);
-  output = "Wifi connection info:\n\r";
-  output += "MAC: ";
-  output += String(mac[5], HEX) + ":";
-  output += String(mac[4], HEX) + ":";
-  output += String(mac[3], HEX) + ":";
-  output += String(mac[2], HEX) + ":";
-  output += String(mac[1], HEX) + ":";
-  output += String(mac[0], HEX) + "\n\r";
-  output += "Wifi Status:\n\r";
-  output += "Status: " + String(WiFi.status()) + "\n\r";
-  output += "SSID: " + WiFi.SSID() + "\n\r";
-  output += "BSSID: " + WiFi.BSSIDstr() + "\n\r";
-  output += "Channel: " + String(WiFi.channel()) + "\n\r";
-  output += "IP address: " + WiFi.localIP().toString() + "\n\r";
-  output += "Subnet mask: " + WiFi.subnetMask().toString() + "\n\r";
-  output += "Gateway IP: " + WiFi.gatewayIP().toString() + "\n\r";
-  output += "DNS: " + WiFi.dnsIP().toString() + "\n\r";
-  output += "Signal strength (RSSI): " + String(WiFi.RSSI()) + "\n\r";
-  Serial.print(output);
+  Serial.printf("Wifi connection info:\n\r"
+                "MAC: %02x:%02x:%02x:%02x:%02x:%02x\n\r"
+                "Status: %d\n\r"
+                "SSID: %s\n\r"
+                "BSSID: %s\n\r"
+                "Channel: %d\n\r"
+                "IP address: %s\n\r"
+                "Subnet mask: %s\n\r"
+                "Gateway IP: %s\n\r"
+                "DNS: %s\n\r"
+                "Signal strength (RSSI): %d\n\r",
+                mac[5], mac[4], mac[3], mac[2], mac[1], mac[0],
+                WiFi.status(),
+                WiFi.SSID().c_str(),
+                WiFi.BSSIDstr().c_str(),
+                WiFi.channel(),
+                WiFi.localIP().toString().c_str(),
+                WiFi.subnetMask().toString().c_str(),
+                WiFi.gatewayIP().toString().c_str(),
+                WiFi.dnsIP().toString().c_str(),
+                WiFi.RSSI());
 }
 
 void loadConfig(void)
@@ -494,15 +462,13 @@ void checkIaqSensorStatus(void)
   {
     if (iaqSensor.status < BSEC_OK)
     {
-      output = "BSEC error code : " + String(iaqSensor.status);
-      Serial.println(output);
+      Serial.printf("BSEC error code : %d\n", iaqSensor.status);
       for (;;)
         errLeds(); /* Halt in case of failure */
     }
     else
     {
-      output = "BSEC warning code : " + String(iaqSensor.status);
-      Serial.println(output);
+      Serial.printf("BSEC warning code : %d\n", iaqSensor.status);
     }
   }
 
@@ -510,15 +476,13 @@ void checkIaqSensorStatus(void)
   {
     if (iaqSensor.bme680Status < BME680_OK)
     {
-      output = "BME680 error code : " + String(iaqSensor.bme680Status);
-      Serial.println(output);
+      Serial.printf("BME680 error code : %d\n", iaqSensor.bme680Status);
       for (;;)
         errLeds(); /* Halt in case of failure */
     }
     else
     {
-      output = "BME680 warning code : " + String(iaqSensor.bme680Status);
-      Serial.println(output);
+      Serial.printf("BME680 warning code : %d\n", iaqSensor.bme680Status);
     }
   }
 }
