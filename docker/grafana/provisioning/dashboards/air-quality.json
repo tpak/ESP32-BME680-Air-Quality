@@ -109,13 +109,41 @@
       ]
     },
     {
-      "title": "Gas Resistance (Ohms)",
+      "title": "Sea Level Pressure (hPa)",
+      "description": "Pressure corrected to sea level using configured altitude. Removes altitude influence so you see pure weather-driven pressure changes. Shows 0 if altitude is not configured.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": ""
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurehpa",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "bme680_SeaLevelHPa",
+          "legendFormat": "{{location}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Gas Resistance (Ohms)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "fieldConfig": {
         "defaults": {
           "unit": "ohm",
@@ -143,7 +171,7 @@
         "type": "prometheus",
         "uid": ""
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -190,7 +218,7 @@
         "type": "prometheus",
         "uid": ""
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
       "fieldConfig": {
         "defaults": {
           "unit": "ppm",
@@ -230,7 +258,7 @@
         "type": "prometheus",
         "uid": ""
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
       "fieldConfig": {
         "defaults": {
           "unit": "ppm",
@@ -257,7 +285,7 @@
         "type": "prometheus",
         "uid": ""
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "fieldConfig": {
         "defaults": {
           "unit": "volt",

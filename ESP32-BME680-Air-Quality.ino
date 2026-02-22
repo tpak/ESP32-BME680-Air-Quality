@@ -45,7 +45,6 @@
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
 
-// todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
 // Compile-time defaults — runtime values come from NVS (configurable via
@@ -53,6 +52,7 @@
 #define DEFAULT_UDP_HOST         "255.255.255.255"
 #define DEFAULT_UDP_PORT         8089
 #define DEFAULT_READ_INTERVAL_SEC 300
+#define DEFAULT_ALTITUDE_M       0.0f
 
 #define SERIAL_BAUD              115200
 #define WATCHDOG_TIMEOUT_S       600
@@ -96,6 +96,7 @@ bool wifiConnected = false;
 char cfgUdpHost[40];
 int cfgUdpPort;
 int cfgReadIntervalSec;
+float cfgAltitudeM;
 
 void setup()
 {
@@ -169,7 +170,7 @@ void setup()
   WiFiManager wifiManager;
   wifiManager.setConfigPortalTimeout(CONFIG_PORTAL_TIMEOUT_S);
 
-  // Add custom parameters for UDP host, port, and read interval
+  // Add custom parameters for UDP host, port, read interval, and altitude
   WiFiManagerParameter customUdpHost("udp_host", "UDP Host IP", cfgUdpHost, 40);
   char portStr[6];
   snprintf(portStr, sizeof(portStr), "%d", cfgUdpPort);
@@ -177,10 +178,14 @@ void setup()
   char intervalStr[6];
   snprintf(intervalStr, sizeof(intervalStr), "%d", cfgReadIntervalSec);
   WiFiManagerParameter customInterval("interval", "Read Interval (seconds)", intervalStr, 6);
+  char altStr[10];
+  snprintf(altStr, sizeof(altStr), "%.0f", cfgAltitudeM);
+  WiFiManagerParameter customAltitude("altitude", "Altitude (meters)", altStr, 10);
 
   wifiManager.addParameter(&customUdpHost);
   wifiManager.addParameter(&customUdpPort);
   wifiManager.addParameter(&customInterval);
+  wifiManager.addParameter(&customAltitude);
 
   // Save custom params when portal is submitted
   wifiManager.setSaveParamsCallback([&]() {
@@ -190,6 +195,8 @@ void setup()
     if (cfgUdpPort <= 0 || cfgUdpPort > 65535) cfgUdpPort = DEFAULT_UDP_PORT;
     cfgReadIntervalSec = atoi(customInterval.getValue());
     if (cfgReadIntervalSec < 10) cfgReadIntervalSec = DEFAULT_READ_INTERVAL_SEC;
+    cfgAltitudeM = atof(customAltitude.getValue());
+    if (cfgAltitudeM < 0.0f) cfgAltitudeM = DEFAULT_ALTITUDE_M;
     saveConfig();
   });
 
@@ -221,6 +228,7 @@ void setup()
 
   Serial.printf("Read interval: %d seconds\n", cfgReadIntervalSec);
   Serial.printf("UDP target: %s:%d\n", cfgUdpHost, cfgUdpPort);
+  Serial.printf("Altitude: %.0f meters\n", cfgAltitudeM);
 
   // Force first reading immediately
   lastSensorRead = 0;
@@ -280,21 +288,28 @@ void loop()
     checkIaqSensorStatus();
   }
 
-  float altitude = pressureToAltitude(pressure);
+  // BSEC returns pressure in Pa — convert to hPa for display and formulas
+  float pressureHPa = pressure / 100.0f;
+  float altitude = pressureToAltitude(pressureHPa);
+  float seaLevelHPa = (cfgAltitudeM > 0.0f)
+      ? pressureToSeaLevel(pressureHPa, cfgAltitudeM)
+      : 0.0f;
 
   // get battery voltage
   int voltageRaw = analogRead(35);
   float voltage = adcToVoltage(voltageRaw);
 
   Serial.printf("Elapsed ms = %lu, Temp C = %.2f, Temp F = %.2f, "
-                "Pressure = %.2f, Humidity = %.2f, Gas = %.2f, "
+                "Pressure = %.2f hPa, Humidity = %.2f, Gas = %.2f, "
                 "IAQ = %.2f, IAQ Accuracy = %d, Comp Temp C = %.2f, "
                 "Comp RH = %.2f, Static IAQ = %.2f, CO2 = %.2f, "
-                "Breath VOC = %.2f, Altitude = %.2f, "
+                "Breath VOC = %.2f, Altitude = %.2f m, "
+                "Sea Level = %.2f hPa, "
                 "Vraw = %d, Voltage = %.2f\n",
-                now, tempC, tempF, pressure, humidity, gas,
+                now, tempC, tempF, pressureHPa, humidity, gas,
                 iaq, iaqAccuracyVal, compTemp, compRH,
                 iaqStatic, iaqCO2, breathVoc, altitude,
+                seaLevelHPa,
                 voltageRaw, voltage);
 
   // Send InfluxDB line protocol over UDP to time-series database
@@ -306,8 +321,9 @@ void loop()
         delay(UDP_SEND_DELAY_MS);
         char udpBuf[UDP_PAYLOAD_BUF_SIZE];
         buildUdpPayload(udpBuf, sizeof(udpBuf),
-                        tempC, tempF, pressure, humidity, gas,
-                        altitude, voltageRaw, voltage,
+                        tempC, tempF, pressureHPa, humidity, gas,
+                        altitude, seaLevelHPa,
+                        voltageRaw, voltage,
                         iaq, iaqAccuracyVal, iaqStatic,
                         iaqCO2, breathVoc, compTemp, compRH);
         udp.print(udpBuf);
@@ -363,10 +379,14 @@ void startConfigPortal(void)
   char intervalStr[6];
   snprintf(intervalStr, sizeof(intervalStr), "%d", cfgReadIntervalSec);
   WiFiManagerParameter customInterval("interval", "Read Interval (seconds)", intervalStr, 6);
+  char altStr[10];
+  snprintf(altStr, sizeof(altStr), "%.0f", cfgAltitudeM);
+  WiFiManagerParameter customAltitude("altitude", "Altitude (meters)", altStr, 10);
 
   wm.addParameter(&customUdpHost);
   wm.addParameter(&customUdpPort);
   wm.addParameter(&customInterval);
+  wm.addParameter(&customAltitude);
 
   wm.setSaveParamsCallback([&]() {
     strncpy(cfgUdpHost, customUdpHost.getValue(), sizeof(cfgUdpHost) - 1);
@@ -375,6 +395,8 @@ void startConfigPortal(void)
     if (cfgUdpPort <= 0 || cfgUdpPort > 65535) cfgUdpPort = DEFAULT_UDP_PORT;
     cfgReadIntervalSec = atoi(customInterval.getValue());
     if (cfgReadIntervalSec < 10) cfgReadIntervalSec = DEFAULT_READ_INTERVAL_SEC;
+    cfgAltitudeM = atof(customAltitude.getValue());
+    if (cfgAltitudeM < 0.0f) cfgAltitudeM = DEFAULT_ALTITUDE_M;
     saveConfig();
   });
 
@@ -417,6 +439,7 @@ void loadConfig(void)
   cfgUdpHost[sizeof(cfgUdpHost) - 1] = '\0';
   cfgUdpPort = preferences.getInt("udpPort", DEFAULT_UDP_PORT);
   cfgReadIntervalSec = preferences.getInt("readInterval", DEFAULT_READ_INTERVAL_SEC);
+  cfgAltitudeM = preferences.getFloat("altitudeM", DEFAULT_ALTITUDE_M);
   preferences.end();
 }
 
@@ -426,6 +449,7 @@ void saveConfig(void)
   preferences.putString("udpHost", cfgUdpHost);
   preferences.putInt("udpPort", cfgUdpPort);
   preferences.putInt("readInterval", cfgReadIntervalSec);
+  preferences.putFloat("altitudeM", cfgAltitudeM);
   preferences.end();
   Serial.println(F("Config saved to NVS"));
 }

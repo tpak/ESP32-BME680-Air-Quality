@@ -27,8 +27,11 @@ while true; do
   # Gas resistance: slow variation
   gas=$(awk "BEGIN {printf \"%.0f\", 80000 + 15000 * sin($STEP * 0.02)}")
 
-  # Altitude from pressure
-  altitude=$(awk "BEGIN {printf \"%.4f\", $pressure / 1013.25}")
+  # Altitude from pressure (hypsometric formula)
+  altitude=$(awk "BEGIN {printf \"%.2f\", 44330.0 * (1 - ($pressure / 1013.25) ^ 0.1903)}")
+
+  # Sea level pressure corrected for test altitude of 300m
+  sea_level_hpa=$(awk "BEGIN {printf \"%.2f\", $pressure / (1 - 300.0/44330.0) ^ 5.255}")
 
   # Voltage: gentle wiggle centered at 3.7V, amplitude 0.15
   voltage=$(awk "BEGIN {printf \"%.2f\", 3.70 + 0.15 * sin($STEP * 0.04)}")
@@ -49,7 +52,7 @@ while true; do
   comp_temp=$(awk "BEGIN {printf \"%.2f\", $temp_c - 2.0}")
   comp_rh=$(awk "BEGIN {printf \"%.2f\", $humidity + 3.0}")
 
-  line="bme680,location=test Temp=${temp_c},TempF=${temp_f},hPa=${pressure},RH=${humidity},VOCOhms=${gas},Altitude=${altitude},Vraw=${vraw},Voltage=${voltage},IAQ=${iaq},IAQAccuracy=${iaq_accuracy},StaticIAQ=${static_iaq},CO2=${co2},BreathVOC=${breath_voc},CompTemp=${comp_temp},CompRH=${comp_rh}"
+  line="bme680,location=test Temp=${temp_c},TempF=${temp_f},hPa=${pressure},RH=${humidity},VOCOhms=${gas},Altitude=${altitude},SeaLevelHPa=${sea_level_hpa},Vraw=${vraw},Voltage=${voltage},IAQ=${iaq},IAQAccuracy=${iaq_accuracy},StaticIAQ=${static_iaq},CO2=${co2},BreathVOC=${breath_voc},CompTemp=${comp_temp},CompRH=${comp_rh}"
 
   echo "$line" | nc -u -w0 "$HOST" "$PORT"
   echo "[$STEP] T=${temp_c}C/${temp_f}F  IAQ=${iaq}  CO2=${co2}  VOC=${breath_voc}"

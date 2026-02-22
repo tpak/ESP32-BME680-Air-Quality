@@ -19,6 +19,7 @@ static int tests_passed = 0;
   } while(0)
 
 #define APPROX(a, b) (fabs((a) - (b)) < 0.01f)
+#define APPROX_ALT(a, b) (fabs((a) - (b)) < 1.0f)
 
 int main() {
   printf("=== Temperature: celsiusToFahrenheit ===\n");
@@ -35,15 +36,26 @@ int main() {
   RUN_TEST("typical LiPo ~2296 -> ~3.69V", APPROX(adcToVoltage(2296), 3.69f));
 
   printf("\n=== Altitude: pressureToAltitude ===\n");
-  RUN_TEST("sea level 1013.25 -> 1.0", APPROX(pressureToAltitude(1013.25f), 1.0f));
-  RUN_TEST("half pressure -> 0.5",     APPROX(pressureToAltitude(1013.25f / 2.0f), 0.5f));
-  RUN_TEST("zero pressure -> 0.0",     APPROX(pressureToAltitude(0.0f), 0.0f));
+  // Hypsometric formula: 44330 * (1 - (P/P0)^0.1903)
+  RUN_TEST("sea level 1013.25 -> ~0m",  APPROX_ALT(pressureToAltitude(1013.25f), 0.0f));
+  RUN_TEST("900 hPa -> ~988m",          APPROX_ALT(pressureToAltitude(900.0f), 988.0f));
+  RUN_TEST("500 hPa -> ~5575m",         APPROX_ALT(pressureToAltitude(500.0f), 5575.0f));
+
+  printf("\n=== Sea Level Pressure: pressureToSeaLevel ===\n");
+  // Inverse formula: P / (1 - alt/44330)^5.255
+  RUN_TEST("sea level, 0m -> same pressure",
+           APPROX(pressureToSeaLevel(1013.25f, 0.0f), 1013.25f));
+  RUN_TEST("977 hPa at 300m -> ~1013 hPa",
+           APPROX_ALT(pressureToSeaLevel(977.0f, 300.0f), 1013.0f));
+  RUN_TEST("round-trip: altitude then sea level",
+           APPROX(pressureToSeaLevel(900.0f, pressureToAltitude(900.0f)), 1013.25f));
 
   printf("\n=== Line protocol: buildUdpPayload ===\n");
   char buf[512];
   int len = buildUdpPayload(buf, sizeof(buf),
                              22.5f, 72.5f, 1013.25f, 45.0f, 80000.0f,
-                             1.0f, 2048, 1.65f,
+                             0.0f, 1013.25f,
+                             2048, 1.65f,
                              75.0f, 3, 80.0f, 500.0f, 1.5f,
                              21.5f, 43.0f);
 
@@ -55,7 +67,8 @@ int main() {
   RUN_TEST("contains hPa=",            strstr(buf, "hPa=1013.25") != NULL);
   RUN_TEST("contains RH=",             strstr(buf, "RH=45.00") != NULL);
   RUN_TEST("contains VOCOhms=",        strstr(buf, "VOCOhms=80000.00") != NULL);
-  RUN_TEST("contains Altitude=",       strstr(buf, "Altitude=1.00") != NULL);
+  RUN_TEST("contains Altitude=",       strstr(buf, "Altitude=0.00") != NULL);
+  RUN_TEST("contains SeaLevelHPa=",    strstr(buf, "SeaLevelHPa=1013.25") != NULL);
   RUN_TEST("contains Vraw=",           strstr(buf, "Vraw=2048") != NULL);
   RUN_TEST("contains Voltage=",        strstr(buf, "Voltage=1.65") != NULL);
   RUN_TEST("no Altitide typo",         strstr(buf, "Altitide") == NULL);
@@ -71,7 +84,8 @@ int main() {
   char tiny[10];
   int truncLen = buildUdpPayload(tiny, sizeof(tiny),
                                   22.5f, 72.5f, 1013.25f, 45.0f, 80000.0f,
-                                  1.0f, 2048, 1.65f,
+                                  0.0f, 0.0f,
+                                  2048, 1.65f,
                                   75.0f, 3, 80.0f, 500.0f, 1.5f,
                                   21.5f, 43.0f);
   RUN_TEST("truncated: return > bufLen", truncLen >= (int)sizeof(tiny));

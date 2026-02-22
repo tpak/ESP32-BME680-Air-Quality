@@ -61,6 +61,7 @@ Override the serial port: `PORT=/dev/tty.xxx ./build.sh upload`
    - **UDP Host IP** (default: `255.255.255.255` broadcast)
    - **UDP Port** (default: `8089`)
    - **Read Interval** in seconds (default: `300` = 5 minutes; minimum: `10`)
+   - **Altitude** in meters (default: `0` = unconfigured). Set to your location's altitude (from Google Maps or GPS) to enable sea-level pressure correction
 4. Save — the device connects and starts sending data
 
 All settings are stored in NVS and persist across reboots.
@@ -128,7 +129,9 @@ A 2.0 C offset (`BSEC_TEMP_OFFSET`) is applied to compensate for self-heating fr
 
 The device sends InfluxDB line protocol with these fields:
 
-`Temp`, `TempF`, `hPa`, `RH`, `VOCOhms`, `Altitude`, `Vraw`, `Voltage`, `IAQ`, `IAQAccuracy`, `StaticIAQ`, `CO2`, `BreathVOC`, `CompTemp`, `CompRH`
+`Temp`, `TempF`, `hPa`, `RH`, `VOCOhms`, `Altitude`, `SeaLevelHPa`, `Vraw`, `Voltage`, `IAQ`, `IAQAccuracy`, `StaticIAQ`, `CO2`, `BreathVOC`, `CompTemp`, `CompRH`
+
+`SeaLevelHPa` is the station pressure corrected to sea level using the configured altitude. Shows `0` when altitude is not configured.
 
 ## Reference Documentation
 
