@@ -8,6 +8,7 @@ note to self.md
 
 # Ignore build folder
 /build
+/test_runner
 
 # Ignore files built by Visual Studio Code, JetBrains IDEs, and other editors
 # but keep helper files like arduino.json
@@ -22,3 +23,4 @@ docs/source/_build
 # Test log files
 *.log
 can not find these.txt
+.claude/settings.local.json

@@ -12,6 +12,8 @@
 #include <bme68x.h>
 #include <bsec.h>
 
+#include "bme680_functions.h"
+
 // Adafruit Huzzah32 ESP32 Feather info:
 // https://learn.adafruit.com/adafruit-huzzah32-esp32-feather
 
@@ -43,12 +45,13 @@
 // todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-// UDP target for InfluxDB line protocol.
+// UDP target for time-series database (e.g. VictoriaMetrics, InfluxDB).
+// Sends InfluxDB line protocol over UDP.
 // Default is broadcast (255.255.255.255) which works when a listener is on
 // the same network. Docker on macOS cannot receive broadcast UDP, so set
 // this to your Mac's IP address (e.g. 192, 168, 1, 100).
-#define INFLUX_HOST 255, 255, 255, 255
-#define INFLUX_PORT 8089
+#define UDP_HOST 255, 255, 255, 255
+#define UDP_PORT 8089
 
 // Helper functions declarations
 void checkIaqSensorStatus(void);
@@ -159,7 +162,7 @@ void loop()
   if (iaqSensor.run())
   {
     tempC = (iaqSensor.rawTemperature);
-    tempF = ((tempC * (9.0 / 5.0)) + 32.0);
+    tempF = celsiusToFahrenheit(tempC);
     pressure = (iaqSensor.pressure);
     humidity = (iaqSensor.rawHumidity);
     gas = (iaqSensor.gasResistance);
@@ -178,11 +181,11 @@ void loop()
 
   // fix this to adjust for actual altitude
   // float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA));
-  float altitude = (pressure / 1013.25);
+  float altitude = pressureToAltitude(pressure);
 
   // get battery voltage
   int voltageRaw = analogRead(35);
-  float voltage = (((float(voltageRaw) * 2.0) / 4096.0) * 3.3);
+  float voltage = adcToVoltage(voltageRaw);
 
   String output =
       String("Elapsed ms = ") +
@@ -220,19 +223,13 @@ void loop()
 
   Serial.println(output);
 
-  // conect UDP to InfluxDB server and send data
-  // if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
-  if (udp.connect(IPAddress(INFLUX_HOST), INFLUX_PORT))
+  // Send InfluxDB line protocol over UDP to time-series database
+  if (udp.connect(IPAddress(UDP_HOST), UDP_PORT))
   {
     delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
-    String influxData = ("bme680,location=363Office Temp=" + String(tempC) + ",TempF=" + String(tempF) + ",hPa=" + String(pressure) +
-                         ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) + ",Altitide=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
-                         ",Voltage=" + String(voltage));
+    String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas, altitude, voltageRaw, voltage);
 
-    // Serial.println("send influxdata over UDP:");
-    // Serial.println(influxData);
-    // Serial.println();
-    udp.print(String(influxData));
+    udp.print(String(udpPayload));
     // udp.endPacket();
     delay(50); // Not really sure if needed ... but it works
   }

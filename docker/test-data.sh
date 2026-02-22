@@ -34,7 +34,7 @@ while true; do
   voltage=$(awk "BEGIN {printf \"%.2f\", 3.70 + 0.15 * sin($STEP * 0.04)}")
   vraw=$(awk "BEGIN {printf \"%.0f\", ($voltage / 3.3) * 4096 / 2}")
 
-  line="bme680,location=test Temp=${temp_c},TempF=${temp_f},hPa=${pressure},RH=${humidity},VOCOhms=${gas},Altitide=${altitude},Vraw=${vraw},Voltage=${voltage}"
+  line="bme680,location=test Temp=${temp_c},TempF=${temp_f},hPa=${pressure},RH=${humidity},VOCOhms=${gas},Altitude=${altitude},Vraw=${vraw},Voltage=${voltage}"
 
   echo "$line" | nc -u -w0 "$HOST" "$PORT"
   echo "[$STEP] T=${temp_c}C/${temp_f}F  P=${pressure}  V=${voltage}"

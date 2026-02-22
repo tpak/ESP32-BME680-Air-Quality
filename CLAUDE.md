@@ -61,7 +61,7 @@ Libraries must be installed in `~/Documents/Arduino/libraries/`:
 - Battery voltage: read from GPIO35 analog, formula: `(raw * 2.0 / 4096.0) * 3.3`
 - `SEALEVELPRESSURE_HPA` is hardcoded to `1013.25` — altitude calculation needs calibration
 - The InfluxDB measurement name and location tag are hardcoded in the UDP send (`bme680,location=363Office`)
-- UDP target IP/port are configurable via `INFLUX_HOST` and `INFLUX_PORT` defines (default: broadcast `255.255.255.255:8089`)
+- UDP target IP/port are configurable via `UDP_HOST` and `UDP_PORT` defines (default: broadcast `255.255.255.255:8089`). Sends InfluxDB line protocol to any compatible receiver (VictoriaMetrics, InfluxDB, Telegraf)
 
 ## Docker Infrastructure
 
@@ -76,4 +76,12 @@ See `docker/README.md` for setup and usage. Key commands:
 - Grafana: `http://localhost:3000` (admin/admin)
 - VictoriaMetrics UI: `http://localhost:8428/vmui/`
 
-Docker on macOS requires setting `INFLUX_HOST` in the firmware to the Mac's IP (broadcast UDP doesn't reach Docker containers).
+Docker on macOS requires setting `UDP_HOST` in the firmware to the Mac's IP (broadcast UDP doesn't reach Docker containers).
+
+## Testing
+
+Unit tests run on the host (no Arduino hardware needed). Testable functions are extracted into `bme680_functions.h` with a `String` shim in `test/arduino_string_compat.h` for host compilation.
+
+- `./build.sh test` — compile and run unit tests (requires `g++`)
+- Tests are in `test/test_bme680.cpp` using plain `assert()`-style macros
+- GitHub Actions runs tests automatically on push/PR to main (see `.github/workflows/test.yml`)

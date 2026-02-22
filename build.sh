@@ -27,13 +27,14 @@ BUILD_DIR="build"
 BAUD=115200
 
 usage() {
-    echo "Usage: $0 {compile|upload|monitor|lint|all}"
+    echo "Usage: $0 {compile|upload|monitor|lint|test|all}"
     echo ""
     echo "Commands:"
     echo "  compile  — Compile the sketch"
     echo "  upload   — Compile and upload to the board"
     echo "  monitor  — Open serial monitor at ${BAUD} baud"
     echo "  lint     — Run cppcheck static analysis"
+    echo "  test     — Run unit tests on host (requires g++)"
     echo "  all      — Compile, upload, and monitor"
     echo ""
     echo "Environment variables:"
@@ -79,6 +80,12 @@ do_lint() {
     echo "==> Lint complete."
 }
 
+do_test() {
+    echo "==> Running unit tests..."
+    g++ -std=c++11 -Wall -Wextra -Werror -I. -o test_runner test/test_bme680.cpp && ./test_runner
+    echo "==> Tests complete."
+}
+
 if [[ $# -eq 0 ]]; then
     usage
 fi
@@ -95,6 +102,9 @@ case "$1" in
         ;;
     lint)
         do_lint
+        ;;
+    test)
+        do_test
         ;;
     all)
         do_upload
