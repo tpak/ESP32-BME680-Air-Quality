@@ -83,7 +83,10 @@ do_lint() {
 do_test() {
     echo "==> Running unit tests..."
     g++ -std=c++11 -Wall -Wextra -Werror -I. -o test_runner test/test_bme680.cpp && ./test_runner
+    local rc=$?
+    rm -f test_runner
     echo "==> Tests complete."
+    return $rc
 }
 
 if [[ $# -eq 0 ]]; then
