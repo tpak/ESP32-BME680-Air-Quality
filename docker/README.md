@@ -24,7 +24,7 @@ docker compose up -d
 Send a test data point from the terminal:
 
 ```bash
-echo 'bme680,location=test Temp=22.5,TempF=72.5,hPa=1013.25,RH=45.0,VOCOhms=80000,Altitude=100,Vraw=2048,Voltage=3.3' | nc -u -w1 localhost 8089
+echo 'bme680,location=test Temp=22.5,TempF=72.5,hPa=1013.25,RH=45.0,VOCOhms=80000,Altitude=100,Vraw=2048,Voltage=3.3,IAQ=75.0,IAQAccuracy=3,StaticIAQ=80.0,CO2=500.0,BreathVOC=1.5,CompTemp=20.5,CompRH=48.0' | nc -u -w1 localhost 8089
 ```
 
 Then open http://localhost:8428/vmui/ and query `bme680_TempF` to confirm it arrived.
