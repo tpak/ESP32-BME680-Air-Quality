@@ -83,7 +83,13 @@ void setup()
 
   Wire.begin();
 
-  iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire); // Adafruit uses secondary address
+  if (iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire) != BSEC_OK) {
+    Serial.println(F("Failed to initialize BME680 sensor"));
+    checkIaqSensorStatus();
+    while (1) {
+      errLeds();
+    }
+  }
   output = "\n\rBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
   Serial.println(output);
   checkIaqSensorStatus();
