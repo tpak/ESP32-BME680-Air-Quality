@@ -137,4 +137,4 @@ The device sends InfluxDB line protocol with these fields:
 
 ## License
 
-BSD 2-Clause. See source files for details.
+BSD 2-Clause. Based on work by Limor Fried & Kevin Townsend for [Adafruit Industries](https://www.adafruit.com/). Designed to work with the [Adafruit BME680 Breakout](https://www.adafruit.com/product/3660). Please support Adafruit and open-source hardware by purchasing products from Adafruit.
