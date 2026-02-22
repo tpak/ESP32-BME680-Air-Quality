@@ -23,7 +23,7 @@
 // Adafruit BME680 using I2C -- see Adafruit examples for other methods
 
 /***************************************************************************
-  Copyright 2020, Chris Tirpak
+  Copyright 2020-2026, Chris Tirpak
   This is a sketch for the BME680 gas, humidity, temperature & pressure sensor
   that will send the reading to an influx database for storage and analysis.
 
