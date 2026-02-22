@@ -1,7 +1,9 @@
 // core Library:
 #include <Arduino.h>
-#include "AsyncUDP.h" // from ESP32 library - comment out for 8266
+#include "AsyncUDP.h" // from ESP32 library
 #include <Preferences.h>
+#include <ESPmDNS.h>
+#include <esp_task_wdt.h>
 
 // 3rd party libraries:
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
@@ -46,13 +48,19 @@
 // todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-// UDP target for time-series database (e.g. VictoriaMetrics, InfluxDB).
-// Sends InfluxDB line protocol over UDP.
-// Default is broadcast (255.255.255.255) which works when a listener is on
-// the same network. Docker on macOS cannot receive broadcast UDP, so set
-// this to your Mac's IP address (e.g. 192, 168, 1, 100).
-#define UDP_HOST 255, 255, 255, 255
-#define UDP_PORT 8089
+// Compile-time defaults — runtime values come from NVS (configurable via
+// captive portal). These are used only on first boot or after NVS erase.
+#define DEFAULT_UDP_HOST         "255.255.255.255"
+#define DEFAULT_UDP_PORT         8089
+#define DEFAULT_READ_INTERVAL_SEC 300
+
+#define SERIAL_BAUD              115200
+#define WATCHDOG_TIMEOUT_S       600
+#define CONFIG_PORTAL_PIN        0        // GPIO0 = BOOT button on HUZZAH32
+#define CONFIG_PORTAL_TIMEOUT_S  180
+#define AP_NAME                  "AirQuality-Setup"
+#define MDNS_HOSTNAME            "airquality"
+#define UDP_SEND_DELAY_MS        50
 
 // Temperature offset to compensate for ESP32 self-heating (degrees C).
 // The BME680 mounted near the ESP32 reads ~2C higher than ambient.
@@ -68,6 +76,10 @@ void checkIaqSensorStatus(void);
 void errLeds(void);
 void loadBsecState(void);
 void saveBsecState(void);
+void loadConfig(void);
+void saveConfig(void);
+void startConfigPortal(void);
+void setupWiFiEvents(void);
 
 // Create an object of the class Bsec
 Bsec iaqSensor;
@@ -78,11 +90,17 @@ AsyncUDP udp;
 
 Preferences preferences;
 unsigned long lastBsecSave = 0;
+unsigned long lastSensorRead = 0;
+bool wifiConnected = false;
+
+// Runtime-configurable settings (stored in NVS, configurable via captive portal)
+char cfgUdpHost[40];
+int cfgUdpPort;
+int cfgReadIntervalSec;
 
 void setup()
 {
-
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
   while (!Serial)
     delay(2000); // Wait for serial to be ready
   // delay for humans to catch up over on the serial port
@@ -90,8 +108,11 @@ void setup()
   Serial.println();
   Serial.println(F("serial init complete"));
   Serial.println(F("bme680station debug"));
-  Serial.println(F("bme680station version 0.2.0"));
+  Serial.println(F("bme680station version 0.3.0"));
   Serial.flush();
+
+  // Load runtime config from NVS (UDP host, port, read interval)
+  loadConfig();
 
   Wire.begin();
 
@@ -139,35 +160,100 @@ void setup()
 
   iaqSensor.updateSubscription(sensorList, 10, BSEC_SAMPLE_RATE_LP);
   checkIaqSensorStatus();
-  // initialize the sensor
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(CONFIG_PORTAL_PIN, INPUT_PULLUP);
+
+  // Set up event-driven WiFi reconnect before connecting
+  setupWiFiEvents();
 
   WiFiManager wifiManager;
-  // Uncomment and run it once, if you want to erase all the stored information
-  // wifiManager.resetSettings();
+  wifiManager.setConfigPortalTimeout(CONFIG_PORTAL_TIMEOUT_S);
 
-  // fetches ssid and pass from eeprom and tries to connect
-  // if it does not connect it starts an access point with the specified name
-  // and goes into a blocking loop awaiting configuration
-  if (!wifiManager.autoConnect("AutoConnectAP"))
+  // Add custom parameters for UDP host, port, and read interval
+  WiFiManagerParameter customUdpHost("udp_host", "UDP Host IP", cfgUdpHost, 40);
+  char portStr[6];
+  snprintf(portStr, sizeof(portStr), "%d", cfgUdpPort);
+  WiFiManagerParameter customUdpPort("udp_port", "UDP Port", portStr, 6);
+  char intervalStr[6];
+  snprintf(intervalStr, sizeof(intervalStr), "%d", cfgReadIntervalSec);
+  WiFiManagerParameter customInterval("interval", "Read Interval (seconds)", intervalStr, 6);
+
+  wifiManager.addParameter(&customUdpHost);
+  wifiManager.addParameter(&customUdpPort);
+  wifiManager.addParameter(&customInterval);
+
+  // Save custom params when portal is submitted
+  wifiManager.setSaveParamsCallback([&]() {
+    strncpy(cfgUdpHost, customUdpHost.getValue(), sizeof(cfgUdpHost) - 1);
+    cfgUdpHost[sizeof(cfgUdpHost) - 1] = '\0';
+    cfgUdpPort = atoi(customUdpPort.getValue());
+    if (cfgUdpPort <= 0 || cfgUdpPort > 65535) cfgUdpPort = DEFAULT_UDP_PORT;
+    cfgReadIntervalSec = atoi(customInterval.getValue());
+    if (cfgReadIntervalSec < 10) cfgReadIntervalSec = DEFAULT_READ_INTERVAL_SEC;
+    saveConfig();
+  });
+
+  if (!wifiManager.autoConnect(AP_NAME))
   {
-    Serial.println("failed to connect and hit timeout");
+    Serial.println(F("Failed to connect and hit timeout"));
     ESP.restart();
     delay(1000);
   }
 
   // if you get here you have connected to the WiFi
-  Serial.println("WifFi connected.");
+  Serial.println(F("WiFi connected."));
+  wifiConnected = true;
+  digitalWrite(LED_BUILTIN, HIGH); // LED on = WiFi connected
 
   // print the wifi info to serial
   printWifiStatusToSerial();
+
+  // Start mDNS so device is reachable at airquality.local
+  if (MDNS.begin(MDNS_HOSTNAME)) {
+    Serial.print(F("mDNS started: "));
+    Serial.print(MDNS_HOSTNAME);
+    Serial.println(F(".local"));
+  } else {
+    Serial.println(F("mDNS failed to start"));
+  }
+
+  // Initialize watchdog timer
+  esp_task_wdt_init(WATCHDOG_TIMEOUT_S, true);
+  esp_task_wdt_add(NULL);
+
+  Serial.print(F("Read interval: "));
+  Serial.print(cfgReadIntervalSec);
+  Serial.println(F(" seconds"));
+  Serial.print(F("UDP target: "));
+  Serial.print(cfgUdpHost);
+  Serial.print(F(":"));
+  Serial.println(cfgUdpPort);
+
+  // Force first reading immediately
+  lastSensorRead = 0;
 }
 
 void loop()
 {
-  digitalWrite(LED_BUILTIN, HIGH); // led on while we process the BME680
-  unsigned long time_trigger = millis();
+  esp_task_wdt_reset();
+
+  // Check if BOOT button is held — enter config portal
+  if (digitalRead(CONFIG_PORTAL_PIN) == LOW) {
+    delay(50); // debounce
+    if (digitalRead(CONFIG_PORTAL_PIN) == LOW) {
+      startConfigPortal();
+    }
+  }
+
+  unsigned long now = millis();
+  unsigned long intervalMs = (unsigned long)cfgReadIntervalSec * 1000UL;
+
+  // Non-blocking timing: only read sensor when interval has elapsed
+  if (now - lastSensorRead < intervalMs) {
+    return;
+  }
+  lastSensorRead = now;
 
   float tempC = 0.00;
   float tempF = 0.00;
@@ -203,7 +289,6 @@ void loop()
   }
 
   // fix this to adjust for actual altitude
-  // float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA));
   float altitude = pressureToAltitude(pressure);
 
   // get battery voltage
@@ -212,7 +297,7 @@ void loop()
 
   String serialOutput =
       String("Elapsed ms = ") +
-      String(time_trigger) + "," +
+      String(now) + "," +
       String("Temperature in C = ") +
       String(tempC) + "," +
       String("Temperature in F = ") +
@@ -247,16 +332,25 @@ void loop()
   Serial.println(serialOutput);
 
   // Send InfluxDB line protocol over UDP to time-series database
-  if (udp.connect(IPAddress(UDP_HOST), UDP_PORT))
-  {
-    delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
-    String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas,
-                                         altitude, voltageRaw, voltage,
-                                         iaq, iaqAccuracyVal, iaqStatic,
-                                         iaqCO2, breath, compTemp, compRH);
-
-    udp.print(String(udpPayload));
-    delay(50);
+  // Skip UDP send if WiFi is down — sensor reads still happen
+  if (wifiConnected) {
+    IPAddress targetIP;
+    if (targetIP.fromString(cfgUdpHost)) {
+      if (udp.connect(targetIP, cfgUdpPort)) {
+        delay(UDP_SEND_DELAY_MS);
+        String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas,
+                                             altitude, voltageRaw, voltage,
+                                             iaq, iaqAccuracyVal, iaqStatic,
+                                             iaqCO2, breath, compTemp, compRH);
+        udp.print(String(udpPayload));
+        delay(UDP_SEND_DELAY_MS);
+      }
+    } else {
+      Serial.print(F("Invalid UDP host: "));
+      Serial.println(cfgUdpHost);
+    }
+  } else {
+    Serial.println(F("WiFi disconnected — skipping UDP send"));
   }
 
   // Periodically save BSEC calibration state to NVS
@@ -264,10 +358,62 @@ void loop()
     saveBsecState();
     lastBsecSave = millis();
   }
+}
 
-  digitalWrite(LED_BUILTIN, LOW); // turn the LED off
-  delay(5 * (60 * 1000));         // minutes
-  // delay(10 * 1000); // seconds
+void setupWiFiEvents(void)
+{
+  WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+    switch (event) {
+      case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+        Serial.println(F("WiFi disconnected, reconnecting..."));
+        wifiConnected = false;
+        digitalWrite(LED_BUILTIN, LOW);  // LED off = disconnected
+        WiFi.reconnect();
+        break;
+      case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+        Serial.print(F("WiFi connected, IP: "));
+        Serial.println(WiFi.localIP());
+        wifiConnected = true;
+        digitalWrite(LED_BUILTIN, HIGH); // LED on = connected
+        break;
+      default:
+        break;
+    }
+  });
+  WiFi.setAutoReconnect(true);
+}
+
+void startConfigPortal(void)
+{
+  Serial.println(F("Config button pressed — starting config portal..."));
+
+  WiFiManager wm;
+  wm.setConfigPortalTimeout(CONFIG_PORTAL_TIMEOUT_S);
+
+  WiFiManagerParameter customUdpHost("udp_host", "UDP Host IP", cfgUdpHost, 40);
+  char portStr[6];
+  snprintf(portStr, sizeof(portStr), "%d", cfgUdpPort);
+  WiFiManagerParameter customUdpPort("udp_port", "UDP Port", portStr, 6);
+  char intervalStr[6];
+  snprintf(intervalStr, sizeof(intervalStr), "%d", cfgReadIntervalSec);
+  WiFiManagerParameter customInterval("interval", "Read Interval (seconds)", intervalStr, 6);
+
+  wm.addParameter(&customUdpHost);
+  wm.addParameter(&customUdpPort);
+  wm.addParameter(&customInterval);
+
+  wm.setSaveParamsCallback([&]() {
+    strncpy(cfgUdpHost, customUdpHost.getValue(), sizeof(cfgUdpHost) - 1);
+    cfgUdpHost[sizeof(cfgUdpHost) - 1] = '\0';
+    cfgUdpPort = atoi(customUdpPort.getValue());
+    if (cfgUdpPort <= 0 || cfgUdpPort > 65535) cfgUdpPort = DEFAULT_UDP_PORT;
+    cfgReadIntervalSec = atoi(customInterval.getValue());
+    if (cfgReadIntervalSec < 10) cfgReadIntervalSec = DEFAULT_READ_INTERVAL_SEC;
+    saveConfig();
+  });
+
+  wm.startConfigPortal(AP_NAME);
+  Serial.println(F("Config portal closed"));
 }
 
 void printWifiStatusToSerial()
@@ -293,6 +439,27 @@ void printWifiStatusToSerial()
   output += "DNS: " + WiFi.dnsIP().toString() + "\n\r";
   output += "Signal strength (RSSI): " + String(WiFi.RSSI()) + "\n\r";
   Serial.print(output);
+}
+
+void loadConfig(void)
+{
+  preferences.begin("config", true); // read-only
+  String host = preferences.getString("udpHost", DEFAULT_UDP_HOST);
+  strncpy(cfgUdpHost, host.c_str(), sizeof(cfgUdpHost) - 1);
+  cfgUdpHost[sizeof(cfgUdpHost) - 1] = '\0';
+  cfgUdpPort = preferences.getInt("udpPort", DEFAULT_UDP_PORT);
+  cfgReadIntervalSec = preferences.getInt("readInterval", DEFAULT_READ_INTERVAL_SEC);
+  preferences.end();
+}
+
+void saveConfig(void)
+{
+  preferences.begin("config", false); // read-write
+  preferences.putString("udpHost", cfgUdpHost);
+  preferences.putInt("udpPort", cfgUdpPort);
+  preferences.putInt("readInterval", cfgReadIntervalSec);
+  preferences.end();
+  Serial.println(F("Config saved to NVS"));
 }
 
 void loadBsecState(void)
