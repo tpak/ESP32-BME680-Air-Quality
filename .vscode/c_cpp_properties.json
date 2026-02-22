@@ -24,8 +24,7 @@
             "cppStandard": "c++17",
             "defines": [
                 "USBCON"
-            ],
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+            ]
         },
         {
             "name": "Arduino",
@@ -242,6 +241,8 @@
                 "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/cores/esp32",
                 "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/variants/feather_esp32",
                 "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/libraries/AsyncUDP/src",
+                "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/libraries/Preferences/src",
+                "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/libraries/ESPmDNS/src",
                 "/Users/chris/Documents/Arduino/libraries/WiFiManager",
                 "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/libraries/WiFi/src",
                 "/Users/chris/Library/Arduino15/packages/esp32/hardware/esp32/2.0.5/libraries/Update/src",
