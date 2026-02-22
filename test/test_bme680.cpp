@@ -40,7 +40,10 @@ int main() {
   RUN_TEST("zero pressure -> 0.0",     APPROX(pressureToAltitude(0.0f), 0.0f));
 
   printf("\n=== Line protocol: buildUdpPayload ===\n");
-  String payload = buildUdpPayload(22.5f, 72.5f, 1013.25f, 45.0f, 80000.0f, 1.0f, 2048, 1.65f);
+  String payload = buildUdpPayload(22.5f, 72.5f, 1013.25f, 45.0f, 80000.0f,
+                                    1.0f, 2048, 1.65f,
+                                    75.0f, 3, 80.0f, 500.0f, 1.5f,
+                                    21.5f, 43.0f);
   const char* s = payload.c_str();
 
   RUN_TEST("starts with measurement",  strncmp(s, "bme680,location=363Office ", 26) == 0);
@@ -53,6 +56,13 @@ int main() {
   RUN_TEST("contains Vraw=",           strstr(s, "Vraw=2048") != NULL);
   RUN_TEST("contains Voltage=",        strstr(s, "Voltage=1.65") != NULL);
   RUN_TEST("no Altitide typo",         strstr(s, "Altitide") == NULL);
+  RUN_TEST("contains IAQ=",            strstr(s, "IAQ=75.00") != NULL);
+  RUN_TEST("contains IAQAccuracy=",    strstr(s, "IAQAccuracy=3") != NULL);
+  RUN_TEST("contains StaticIAQ=",      strstr(s, "StaticIAQ=80.00") != NULL);
+  RUN_TEST("contains CO2=",            strstr(s, "CO2=500.00") != NULL);
+  RUN_TEST("contains BreathVOC=",      strstr(s, "BreathVOC=1.50") != NULL);
+  RUN_TEST("contains CompTemp=",       strstr(s, "CompTemp=21.50") != NULL);
+  RUN_TEST("contains CompRH=",         strstr(s, "CompRH=43.00") != NULL);
 
   printf("\n%d/%d tests passed\n", tests_passed, tests_run);
   return (tests_passed == tests_run) ? 0 : 1;

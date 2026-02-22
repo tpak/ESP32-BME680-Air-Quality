@@ -136,13 +136,128 @@
       ]
     },
     {
+      "title": "IAQ Score",
+      "description": "Indoor Air Quality index (0-500). 0-50 excellent, 51-100 good, 101-150 moderate, 151-200 unhealthy, 201-300 poor, 301-500 hazardous.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "max": 500,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 100 },
+              { "color": "orange", "value": 150 },
+              { "color": "red", "value": 200 },
+              { "color": "dark-red", "value": 300 }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": { "mode": "area" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "bme680_IAQ",
+          "legendFormat": "{{location}} IAQ",
+          "refId": "A"
+        },
+        {
+          "expr": "bme680_StaticIAQ",
+          "legendFormat": "{{location}} Static IAQ",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "CO2 Equivalent (ppm)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ppm",
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "green", "value": 400 },
+              { "color": "yellow", "value": 1000 },
+              { "color": "orange", "value": 2000 },
+              { "color": "red", "value": 5000 }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": { "mode": "area" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "bme680_CO2",
+          "legendFormat": "{{location}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Breath VOC (ppm)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ppm",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "bme680_BreathVOC",
+          "legendFormat": "{{location}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "title": "Battery Voltage",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": ""
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "fieldConfig": {
         "defaults": {
           "unit": "volt",
@@ -169,5 +284,5 @@
   "time": { "from": "now-24h", "to": "now" },
   "title": "Air Quality",
   "uid": "air-quality",
-  "version": 2
+  "version": 3
 }

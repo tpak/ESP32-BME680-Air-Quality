@@ -1,6 +1,7 @@
 // core Library:
 #include <Arduino.h>
 #include "AsyncUDP.h" // from ESP32 library - comment out for 8266
+#include <Preferences.h>
 
 // 3rd party libraries:
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
@@ -53,19 +54,30 @@
 #define UDP_HOST 255, 255, 255, 255
 #define UDP_PORT 8089
 
+// Temperature offset to compensate for ESP32 self-heating (degrees C).
+// The BME680 mounted near the ESP32 reads ~2C higher than ambient.
+#define BSEC_TEMP_OFFSET 2.0f
+
+// How often to save BSEC calibration state to NVS (milliseconds).
+// Default: every 6 hours. Frequent saves are unnecessary since NVS
+// has limited write endurance (~100K cycles).
+#define BSEC_SAVE_INTERVAL_MS (6UL * 60 * 60 * 1000)
+
 // Helper functions declarations
 void checkIaqSensorStatus(void);
 void errLeds(void);
+void loadBsecState(void);
+void saveBsecState(void);
 
 // Create an object of the class Bsec
 Bsec iaqSensor;
 
 String output;
 
-// WiFiMulti wifiMulti;
-// ESP8266WiFiMulti wifiMulti;
 AsyncUDP udp;
-// WiFiUDP udp;
+
+Preferences preferences;
+unsigned long lastBsecSave = 0;
 
 void setup()
 {
@@ -78,7 +90,7 @@ void setup()
   Serial.println();
   Serial.println(F("serial init complete"));
   Serial.println(F("bme680station debug"));
-  Serial.println(F("bme680station version 0.1.1"));
+  Serial.println(F("bme680station version 0.2.0"));
   Serial.flush();
 
   Wire.begin();
@@ -93,6 +105,15 @@ void setup()
   output = "\n\rBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
   Serial.println(output);
   checkIaqSensorStatus();
+
+  // Apply temperature offset to compensate for ESP32 self-heating
+  iaqSensor.setTemperatureOffset(BSEC_TEMP_OFFSET);
+  Serial.print(F("Temperature offset applied: "));
+  Serial.print(BSEC_TEMP_OFFSET);
+  Serial.println(F(" C"));
+
+  // Restore BSEC calibration state from NVS (if previously saved)
+  loadBsecState();
 
   // countdown a brief delay again for the humans on the serial port
   for (int waitSeconds = 5; waitSeconds > 0; waitSeconds--)
@@ -119,10 +140,6 @@ void setup()
   iaqSensor.updateSubscription(sensorList, 10, BSEC_SAMPLE_RATE_LP);
   checkIaqSensorStatus();
   // initialize the sensor
-
-  // Print the header
-  // output = "Timestamp [ms], raw temperature [°C], pressure [hPa], raw relative humidity [%], gas [Ohm], IAQ, IAQ accuracy, temperature [°C], relative humidity [%], Static IAQ, CO2 equivalent, breath VOC equivalent";
-  // Serial.println(output);
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -158,9 +175,9 @@ void loop()
   float humidity = 0.00;
   float gas = 0.00;
   float iaq = 0.00;
-  float iaqAccuracy = 0.00;
-  float iaqTempC = 0.00;
-  float iaqhumidity = 0.00;
+  int iaqAccuracyVal = 0;
+  float compTemp = 0.00;
+  float compRH = 0.00;
   float iaqStatic = 0.00;
   float iaqCO2 = 0.00;
   float breath = 0.00;
@@ -173,9 +190,9 @@ void loop()
     humidity = (iaqSensor.rawHumidity);
     gas = (iaqSensor.gasResistance);
     iaq = (iaqSensor.iaq);
-    iaqAccuracy = (iaqSensor.iaqAccuracy);
-    iaqTempC = (iaqSensor.temperature);
-    iaqhumidity = (iaqSensor.humidity);
+    iaqAccuracyVal = (iaqSensor.iaqAccuracy);
+    compTemp = (iaqSensor.temperature);
+    compRH = (iaqSensor.humidity);
     iaqStatic = (iaqSensor.staticIaq);
     iaqCO2 = (iaqSensor.co2Equivalent);
     breath = (iaqSensor.breathVocEquivalent);
@@ -193,7 +210,7 @@ void loop()
   int voltageRaw = analogRead(35);
   float voltage = adcToVoltage(voltageRaw);
 
-  String output =
+  String serialOutput =
       String("Elapsed ms = ") +
       String(time_trigger) + "," +
       String("Temperature in C = ") +
@@ -209,11 +226,11 @@ void loop()
       String("IAQ = ") +
       String(iaq) + "," +
       String("IAQ Accuracy = ") +
-      String(iaqAccuracy) + "," +
-      String("IAQ Temp C = ") +
-      String(iaqTempC) + "," +
-      String("IAQ Humidity = ") +
-      String(iaqhumidity) + "," +
+      String(iaqAccuracyVal) + "," +
+      String("Comp Temp C = ") +
+      String(compTemp) + "," +
+      String("Comp Humidity = ") +
+      String(compRH) + "," +
       String("IAQ Static = ") +
       String(iaqStatic) + "," +
       String("IAQ CO2 = ") +
@@ -227,17 +244,25 @@ void loop()
       String("Voltage = ") +
       String(voltage);
 
-  Serial.println(output);
+  Serial.println(serialOutput);
 
   // Send InfluxDB line protocol over UDP to time-series database
   if (udp.connect(IPAddress(UDP_HOST), UDP_PORT))
   {
     delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
-    String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas, altitude, voltageRaw, voltage);
+    String udpPayload = buildUdpPayload(tempC, tempF, pressure, humidity, gas,
+                                         altitude, voltageRaw, voltage,
+                                         iaq, iaqAccuracyVal, iaqStatic,
+                                         iaqCO2, breath, compTemp, compRH);
 
     udp.print(String(udpPayload));
-    // udp.endPacket();
-    delay(50); // Not really sure if needed ... but it works
+    delay(50);
+  }
+
+  // Periodically save BSEC calibration state to NVS
+  if (millis() - lastBsecSave >= BSEC_SAVE_INTERVAL_MS) {
+    saveBsecState();
+    lastBsecSave = millis();
   }
 
   digitalWrite(LED_BUILTIN, LOW); // turn the LED off
@@ -268,6 +293,31 @@ void printWifiStatusToSerial()
   output += "DNS: " + WiFi.dnsIP().toString() + "\n\r";
   output += "Signal strength (RSSI): " + String(WiFi.RSSI()) + "\n\r";
   Serial.print(output);
+}
+
+void loadBsecState(void)
+{
+  preferences.begin("bsec", true); // read-only
+  size_t stateLen = preferences.getBytesLength("state");
+  if (stateLen == BSEC_MAX_STATE_BLOB_SIZE) {
+    uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE];
+    preferences.getBytes("state", bsecState, BSEC_MAX_STATE_BLOB_SIZE);
+    iaqSensor.setState(bsecState);
+    Serial.println(F("BSEC state restored from NVS"));
+  } else {
+    Serial.println(F("No saved BSEC state found — starting fresh calibration"));
+  }
+  preferences.end();
+}
+
+void saveBsecState(void)
+{
+  uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE];
+  iaqSensor.getState(bsecState);
+  preferences.begin("bsec", false); // read-write
+  preferences.putBytes("state", bsecState, BSEC_MAX_STATE_BLOB_SIZE);
+  preferences.end();
+  Serial.println(F("BSEC state saved to NVS"));
 }
 
 // Helper function definitions

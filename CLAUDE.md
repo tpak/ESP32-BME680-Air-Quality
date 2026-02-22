@@ -42,9 +42,10 @@ Run `./build.sh lint` to run cppcheck. Suppression rules for Arduino-specific fa
 The entire application is in `ESP32-BME680-Air-Quality.ino` — a single-file Arduino sketch:
 
 - **`setup()`**: Initializes Serial (115200), I2C (`Wire`), BME680 via BSEC library (I2C address `0x77`), subscribes to 10 BSEC virtual sensors at low-power sample rate, then connects WiFi via WiFiManager
-- **`loop()`**: Every 5 minutes — reads all BSEC sensor outputs, converts temp C→F, reads battery voltage from GPIO35 ADC, prints readings to Serial, sends to InfluxDB via UDP broadcast to `255.255.255.255:8089`
+- **`loop()`**: Every 5 minutes — reads all BSEC sensor outputs (including IAQ, CO2, VOC, heat-compensated temp/humidity), converts temp C→F, reads battery voltage from GPIO35 ADC, prints readings to Serial, sends to InfluxDB via UDP broadcast to `255.255.255.255:8089`, periodically saves BSEC calibration state to NVS
 - **`checkIaqSensorStatus()`**: Checks both BSEC and BME680 status codes; halts with LED blink on fatal errors, prints warnings otherwise
 - **`errLeds()`**: Rapid LED blink to indicate error state
+- **`loadBsecState()` / `saveBsecState()`**: Persist BSEC calibration state to NVS via `Preferences` library. Saves every 6 hours. Avoids losing the 48-hour burn-in calibration on reboot
 
 ## Key Dependencies
 
@@ -60,8 +61,11 @@ Libraries must be installed in `~/Documents/Arduino/libraries/`:
 - BME680 uses I2C secondary address (`BME680_I2C_ADDR_SECONDARY` = `0x77`); Adafruit breakout boards use this by default
 - Battery voltage: read from GPIO35 analog, formula: `(raw * 2.0 / 4096.0) * 3.3`
 - `SEALEVELPRESSURE_HPA` is hardcoded to `1013.25` — altitude calculation needs calibration
+- `BSEC_TEMP_OFFSET` is set to `2.0` C to compensate for ESP32 self-heating near the BME680
+- BSEC calibration state is persisted to NVS (namespace `"bsec"`) every 6 hours. Restored on boot to avoid losing 48-hour burn-in calibration
 - The InfluxDB measurement name and location tag are hardcoded in the UDP send (`bme680,location=363Office`)
 - UDP target IP/port are configurable via `UDP_HOST` and `UDP_PORT` defines (default: broadcast `255.255.255.255:8089`). Sends InfluxDB line protocol to any compatible receiver (VictoriaMetrics, InfluxDB, Telegraf)
+- UDP payload includes: Temp, TempF, hPa, RH, VOCOhms, Altitude, Vraw, Voltage, IAQ, IAQAccuracy, StaticIAQ, CO2, BreathVOC, CompTemp, CompRH
 
 ## Docker Infrastructure
 
