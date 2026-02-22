@@ -1,11 +1,7 @@
 #ifndef BME680_FUNCTIONS_H
 #define BME680_FUNCTIONS_H
 
-#ifdef ARDUINO
-#include <Arduino.h>
-#else
-#include "test/arduino_string_compat.h"
-#endif
+#include <cstdio>
 
 #ifndef SEALEVELPRESSURE_HPA
 #define SEALEVELPRESSURE_HPA (1013.25)
@@ -23,21 +19,23 @@ inline float pressureToAltitude(float pressureHpa) {
   return pressureHpa / SEALEVELPRESSURE_HPA;
 }
 
-inline String buildUdpPayload(float tempC, float tempF, float pressure,
-                               float humidity, float gas, float altitude,
-                               int voltageRaw, float voltage,
-                               float iaq, int iaqAccuracy, float staticIaq,
-                               float co2, float breathVoc,
-                               float compTemp, float compRH) {
-  return String("bme680,location=363Office Temp=") + String(tempC) +
-         ",TempF=" + String(tempF) + ",hPa=" + String(pressure) +
-         ",RH=" + String(humidity) + ",VOCOhms=" + String(gas) +
-         ",Altitude=" + String(altitude) + ",Vraw=" + String(voltageRaw) +
-         ",Voltage=" + String(voltage) +
-         ",IAQ=" + String(iaq) + ",IAQAccuracy=" + String(iaqAccuracy) +
-         ",StaticIAQ=" + String(staticIaq) + ",CO2=" + String(co2) +
-         ",BreathVOC=" + String(breathVoc) +
-         ",CompTemp=" + String(compTemp) + ",CompRH=" + String(compRH);
+inline int buildUdpPayload(char* buf, size_t bufLen,
+                            float tempC, float tempF, float pressure,
+                            float humidity, float gas, float altitude,
+                            int voltageRaw, float voltage,
+                            float iaq, int iaqAccuracy, float staticIaq,
+                            float co2, float breathVoc,
+                            float compTemp, float compRH) {
+  return snprintf(buf, bufLen,
+    "bme680,location=363Office "
+    "Temp=%.2f,TempF=%.2f,hPa=%.2f,RH=%.2f,"
+    "VOCOhms=%.2f,Altitude=%.2f,Vraw=%d,Voltage=%.2f,"
+    "IAQ=%.2f,IAQAccuracy=%d,StaticIAQ=%.2f,"
+    "CO2=%.2f,BreathVOC=%.2f,CompTemp=%.2f,CompRH=%.2f",
+    tempC, tempF, pressure, humidity,
+    gas, altitude, voltageRaw, voltage,
+    iaq, iaqAccuracy, staticIaq,
+    co2, breathVoc, compTemp, compRH);
 }
 
 #endif // BME680_FUNCTIONS_H

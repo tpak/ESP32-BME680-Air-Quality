@@ -94,7 +94,7 @@ Docker on macOS requires setting `UDP_HOST` in the firmware to the Mac's IP (bro
 
 ## Testing
 
-Unit tests run on the host (no Arduino hardware needed). Testable functions are extracted into `bme680_functions.h` with a `String` shim in `test/arduino_string_compat.h` for host compilation.
+Unit tests run on the host (no Arduino hardware needed). Testable functions are extracted into `bme680_functions.h` using `snprintf`/char buffers (no Arduino dependencies). The `String` shim in `test/arduino_string_compat.h` is retained for future use but not currently needed by tests.
 
 - `./build.sh test` — compile and run unit tests (requires `g++`)
 - Tests are in `test/test_bme680.cpp` using plain `assert()`-style macros
