@@ -41,11 +41,14 @@ Run `./build.sh lint` to run cppcheck. Suppression rules for Arduino-specific fa
 
 The entire application is in `ESP32-BME680-Air-Quality.ino` — a single-file Arduino sketch:
 
-- **`setup()`**: Initializes Serial (115200), I2C (`Wire`), BME680 via BSEC library (I2C address `0x77`), subscribes to 10 BSEC virtual sensors at low-power sample rate, then connects WiFi via WiFiManager
-- **`loop()`**: Every 5 minutes — reads all BSEC sensor outputs (including IAQ, CO2, VOC, heat-compensated temp/humidity), converts temp C→F, reads battery voltage from GPIO35 ADC, prints readings to Serial, sends to InfluxDB via UDP broadcast to `255.255.255.255:8089`, periodically saves BSEC calibration state to NVS
+- **`setup()`**: Initializes Serial (115200), loads config from NVS, initializes I2C + BME680 via BSEC library (I2C address `0x77`), restores BSEC state, subscribes to 10 BSEC virtual sensors at low-power sample rate, sets up WiFi event callbacks, connects WiFi via WiFiManager with custom params (UDP host, port, read interval), starts mDNS (`airquality.local`), initializes watchdog
+- **`loop()`**: Non-blocking `millis()`-based timing at configurable interval (default 5 min). Checks GPIO0 for config portal trigger. Reads all BSEC sensor outputs (IAQ, CO2, VOC, heat-compensated temp/humidity), converts temp C→F, reads battery voltage from GPIO35 ADC, prints readings to Serial. Sends to UDP target (skips if WiFi disconnected). Periodically saves BSEC calibration state to NVS. Resets watchdog each iteration
 - **`checkIaqSensorStatus()`**: Checks both BSEC and BME680 status codes; halts with LED blink on fatal errors, prints warnings otherwise
 - **`errLeds()`**: Rapid LED blink to indicate error state
 - **`loadBsecState()` / `saveBsecState()`**: Persist BSEC calibration state to NVS via `Preferences` library. Saves every 6 hours. Avoids losing the 48-hour burn-in calibration on reboot
+- **`loadConfig()` / `saveConfig()`**: Persist runtime config (UDP host, port, read interval) to NVS namespace `"config"`
+- **`setupWiFiEvents()`**: Registers `WiFi.onEvent()` callback for event-driven reconnect. LED on = connected, LED off = disconnected
+- **`startConfigPortal()`**: Launched when GPIO0 (BOOT button) is held. Opens WiFiManager portal with UDP host, port, and read interval fields
 
 ## Key Dependencies
 
@@ -64,8 +67,15 @@ Libraries must be installed in `~/Documents/Arduino/libraries/`:
 - `BSEC_TEMP_OFFSET` is set to `2.0` C to compensate for ESP32 self-heating near the BME680
 - BSEC calibration state is persisted to NVS (namespace `"bsec"`) every 6 hours. Restored on boot to avoid losing 48-hour burn-in calibration
 - The InfluxDB measurement name and location tag are hardcoded in the UDP send (`bme680,location=363Office`)
-- UDP target IP/port are configurable via `UDP_HOST` and `UDP_PORT` defines (default: broadcast `255.255.255.255:8089`). Sends InfluxDB line protocol to any compatible receiver (VictoriaMetrics, InfluxDB, Telegraf)
+- UDP target IP/port are configurable at runtime via the WiFiManager captive portal (defaults: broadcast `255.255.255.255:8089`). Stored in NVS. Sends InfluxDB line protocol to any compatible receiver (VictoriaMetrics, InfluxDB, Telegraf)
 - UDP payload includes: Temp, TempF, hPa, RH, VOCOhms, Altitude, Vraw, Voltage, IAQ, IAQAccuracy, StaticIAQ, CO2, BreathVOC, CompTemp, CompRH
+- Read interval is configurable via captive portal (default 300s / 5 min, minimum 10s). Stored in NVS
+- WiFi reconnects automatically via `WiFi.onEvent()` callback. UDP sends are skipped (not blocked) while disconnected
+- mDNS hostname: `airquality.local`
+- Hold GPIO0 (BOOT button) to re-enter the WiFiManager config portal at any time
+- AP name: `AirQuality-Setup`
+- LED: ON = WiFi connected, OFF = disconnected, rapid blink = sensor error
+- Watchdog timer: 600s, auto-reboots on hang
 
 ## Docker Infrastructure
 
