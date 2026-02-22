@@ -41,14 +41,14 @@ Run `./build.sh lint` to run cppcheck. Suppression rules for Arduino-specific fa
 
 The entire application is in `ESP32-BME680-Air-Quality.ino` — a single-file Arduino sketch:
 
-- **`setup()`**: Initializes Serial (115200), loads config from NVS, initializes I2C + BME680 via BSEC library (I2C address `0x77`), restores BSEC state, subscribes to 10 BSEC virtual sensors at low-power sample rate, sets up WiFi event callbacks, connects WiFi via WiFiManager with custom params (UDP host, port, read interval), starts mDNS (`airquality.local`), initializes watchdog
-- **`loop()`**: Non-blocking `millis()`-based timing at configurable interval (default 5 min). Checks GPIO0 for config portal trigger. Reads all BSEC sensor outputs (IAQ, CO2, VOC, heat-compensated temp/humidity), converts temp C→F, reads battery voltage from GPIO35 ADC, prints readings to Serial. Sends to UDP target (skips if WiFi disconnected). Periodically saves BSEC calibration state to NVS. Resets watchdog each iteration
+- **`setup()`**: Initializes Serial (115200), loads config from NVS, initializes I2C + BME680 via BSEC library (I2C address `0x77`), restores BSEC state, subscribes to 10 BSEC virtual sensors at low-power sample rate, sets up WiFi event callbacks, connects WiFi via WiFiManager with custom params (UDP host, port, read interval, altitude), starts mDNS (`airquality.local`), initializes watchdog
+- **`loop()`**: Non-blocking `millis()`-based timing at configurable interval (default 5 min). Checks GPIO0 for config portal trigger. Reads all BSEC sensor outputs (IAQ, CO2, VOC, heat-compensated temp/humidity), converts temp C→F, converts pressure Pa→hPa, computes altitude and sea-level pressure from configured altitude, reads battery voltage from GPIO35 ADC, prints readings to Serial. Sends to UDP target (skips if WiFi disconnected). Periodically saves BSEC calibration state to NVS. Resets watchdog each iteration
 - **`checkIaqSensorStatus()`**: Checks both BSEC and BME680 status codes; halts with LED blink on fatal errors, prints warnings otherwise
 - **`errLeds()`**: Rapid LED blink to indicate error state
 - **`loadBsecState()` / `saveBsecState()`**: Persist BSEC calibration state to NVS via `Preferences` library. Saves every 6 hours. Avoids losing the 48-hour burn-in calibration on reboot
-- **`loadConfig()` / `saveConfig()`**: Persist runtime config (UDP host, port, read interval) to NVS namespace `"config"`
+- **`loadConfig()` / `saveConfig()`**: Persist runtime config (UDP host, port, read interval, altitude) to NVS namespace `"config"`
 - **`setupWiFiEvents()`**: Registers `WiFi.onEvent()` callback for event-driven reconnect. LED on = connected, LED off = disconnected
-- **`startConfigPortal()`**: Launched when GPIO0 (BOOT button) is held. Opens WiFiManager portal with UDP host, port, and read interval fields
+- **`startConfigPortal()`**: Launched when GPIO0 (BOOT button) is held. Opens WiFiManager portal with UDP host, port, read interval, and altitude fields
 
 ## Key Dependencies
 
@@ -63,12 +63,13 @@ Libraries must be installed in `~/Documents/Arduino/libraries/`:
 
 - BME680 uses I2C secondary address (`BME680_I2C_ADDR_SECONDARY` = `0x77`); Adafruit breakout boards use this by default
 - Battery voltage: read from GPIO35 analog, formula: `(raw * 2.0 / 4096.0) * 3.3`
-- `SEALEVELPRESSURE_HPA` is hardcoded to `1013.25` — altitude calculation needs calibration
+- `SEALEVELPRESSURE_HPA` is hardcoded to `1013.25` — used as baseline for altitude calculation. User-configured altitude (via captive portal) enables sea-level pressure correction
 - `BSEC_TEMP_OFFSET` is set to `2.0` C to compensate for ESP32 self-heating near the BME680
 - BSEC calibration state is persisted to NVS (namespace `"bsec"`) every 6 hours. Restored on boot to avoid losing 48-hour burn-in calibration
 - The InfluxDB measurement name and location tag are hardcoded in the UDP send (`bme680,location=363Office`)
 - UDP target IP/port are configurable at runtime via the WiFiManager captive portal (defaults: broadcast `255.255.255.255:8089`). Stored in NVS. Sends InfluxDB line protocol to any compatible receiver (VictoriaMetrics, InfluxDB, Telegraf)
-- UDP payload includes: Temp, TempF, hPa, RH, VOCOhms, Altitude, Vraw, Voltage, IAQ, IAQAccuracy, StaticIAQ, CO2, BreathVOC, CompTemp, CompRH
+- Altitude is configurable via captive portal (default 0m = unconfigured). When set, enables sea-level pressure correction (`SeaLevelHPa` field). Look up your altitude on Google Maps or a GPS
+- UDP payload includes: Temp, TempF, hPa, RH, VOCOhms, Altitude, SeaLevelHPa, Vraw, Voltage, IAQ, IAQAccuracy, StaticIAQ, CO2, BreathVOC, CompTemp, CompRH
 - Read interval is configurable via captive portal (default 300s / 5 min, minimum 10s). Stored in NVS
 - WiFi reconnects automatically via `WiFi.onEvent()` callback. UDP sends are skipped (not blocked) while disconnected
 - mDNS hostname: `airquality.local`
