@@ -43,6 +43,13 @@
 // todo add a way to calibrate for this - google around there was an example
 #define SEALEVELPRESSURE_HPA (1013.25)
 
+// UDP target for InfluxDB line protocol.
+// Default is broadcast (255.255.255.255) which works when a listener is on
+// the same network. Docker on macOS cannot receive broadcast UDP, so set
+// this to your Mac's IP address (e.g. 192, 168, 1, 100).
+#define INFLUX_HOST 255, 255, 255, 255
+#define INFLUX_PORT 8089
+
 // Helper functions declarations
 void checkIaqSensorStatus(void);
 void errLeds(void);
@@ -215,7 +222,7 @@ void loop()
 
   // conect UDP to InfluxDB server and send data
   // if(udp.beginPacket(IPAddress(255,255,255,255), 8089)) {
-  if (udp.connect(IPAddress(255, 255, 255, 255), 8089))
+  if (udp.connect(IPAddress(INFLUX_HOST), INFLUX_PORT))
   {
     delay(50); // Needed cause sometimes no Delay = can't send UDP packages fast enough
     String influxData = ("bme680,location=363Office Temp=" + String(tempC) + ",TempF=" + String(tempF) + ",hPa=" + String(pressure) +
